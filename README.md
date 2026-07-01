@@ -8,8 +8,8 @@ Every signal it raises is backed by a real on-chain `validate_stat` call a judge
 can independently verify against Solana Explorer — a proof, not a claim.
 
 > **Status:** ingestion worker + replay recorder (Day 3), pure divergence
-> detector (Day 4), and the on-chain prover (Day 5) are built and devnet-verified.
-> The reasoning layer (Day 6), alerts (Day 7) and dashboard (Day 8+) follow.
+> detector (Day 4), the on-chain prover (Day 5), and the reasoning layer (Day 6)
+> are built and verified. Alerts (Day 7) and dashboard (Day 8+) follow.
 >
 > **Verified proof (devnet):** a real `validate_stat` proof for a goal (fixture
 > 18179759, P1 goals = 2) landed on-chain and resolves on Solana Explorer —
@@ -39,6 +39,22 @@ The whole design keeps the feeds' **trust levels** distinct (see
 
 The divergence detector compares odds movement against **proven** stat changes,
 not raw score events.
+
+### The reasoning layer's boundary
+
+Once the detector raises a structural signal, an LLM turns it into one sentence a
+person can act on at a glance — and nothing more. The boundary is enforced in the
+system prompt **and** in code (`assertWithinBoundary`): the model explains the
+signal the detector already computed; it does **not** judge whether the market is
+"wrong", speculate about *why* the odds haven't moved, or recommend a bet. A model
+that ignores the prompt and returns a trade recommendation is rejected before it
+reaches a user — there's a test for exactly that. This keeps every claim as strong
+as what's provable, no stronger.
+
+> The reasoning client uses the official Anthropic SDK with a `baseURL` override,
+> so it targets Anthropic or any compatible endpoint. In this repo's `.env` it's
+> pointed at DeepSeek (`deepseek-v4-pro`); the boundary/adversarial tests are
+> provider-agnostic and run offline against a mocked port.
 
 ### An honesty note on timestamps
 
@@ -101,6 +117,7 @@ solana airdrop 1 <YOUR_WALLET_PUBKEY> --url devnet
 pnpm ingest    # console demo: prints normalized odds ticks + score events live
 pnpm record    # background recorder: appends raw SSE frames to data/*.jsonl
 pnpm prove     # find a real goal and land a validate_stat proof on devnet (prints explorer link)
+pnpm explain   # run the reasoning layer on a synthetic signal (needs ANTHROPIC_* in .env)
 pnpm test      # unit tests (no network)
 pnpm build     # emit dist/
 ```
@@ -133,6 +150,12 @@ src/
 ├── normalize.ts       PURE: OddsPayload → OddsTick[], Scores → ScoreEvent[]
 ├── detector.ts        PURE: detectLaggingMarket over proven signals vs odds ticks
 ├── prover.ts          ScoreEvent → VerifiedSignal via validate_stat (injectable ports)
+├── reasoning/         explainSignal: DivergenceSignal → one boundary-safe sentence
+│   ├── prompt.ts      system prompt (the hard boundary) + user-payload builder
+│   ├── parse.ts       strict JSON parse + assertWithinBoundary guard
+│   ├── llm.ts         LlmPort over the Anthropic SDK (baseURL-overridable)
+│   └── explain.ts     port → parse → boundary
+├── gamePhase.ts       GameState / statKey → readable labels
 ├── explorer.ts        Solana Explorer tx-link helper
 ├── session.ts         auth → subscribe → activate, cached to .session.json
 ├── ingest/
