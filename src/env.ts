@@ -73,3 +73,36 @@ export function loadReasoningConfig(): ReasoningConfig {
     model: process.env.ANTHROPIC_MODEL || "claude-opus-4-8",
   };
 }
+
+/**
+ * Config for Herald alert delivery. Sidefoot pushes confirmed signals to a
+ * bettor's Telegram through Herald (the notification gateway), so the recipient
+ * is a Herald-registered wallet with Telegram connected — distinct from the
+ * devnet wallet Sidefoot proves stats with.
+ */
+export interface HeraldConfig {
+  apiKey: string;
+  /** Herald-registered recipient wallet (base58) with Telegram connected. */
+  recipientWallet: string;
+  /** Write an on-chain ZK receipt per alert (mainnet, counts against quota). */
+  receipt: boolean;
+  /** 'important'/'critical' add SMS fallback if the recipient has it. */
+  priority: "normal" | "important" | "critical";
+  category: "defi" | "governance" | "system" | "marketing" | "security";
+}
+
+function parsePriority(v: string | undefined): HeraldConfig["priority"] {
+  if (v === "normal" || v === "important" || v === "critical") return v;
+  return "important"; // signals are time-sensitive by nature
+}
+
+export function loadHeraldConfig(): HeraldConfig {
+  return {
+    apiKey: required("HERALD_API_KEY"),
+    recipientWallet: required("HERALD_RECIPIENT_WALLET"),
+    // Default off: alerts can be frequent and receipts hit mainnet + quota.
+    receipt: process.env.HERALD_RECEIPT === "true",
+    priority: parsePriority(process.env.HERALD_PRIORITY),
+    category: "defi",
+  };
+}
