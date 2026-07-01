@@ -1,0 +1,10 @@
+# txline-anchor is installed from git and builds its dist/ via a `prepare`
+# script on install. pnpm 10+ blocks git-dep build scripts unless allowlisted.
+# esbuild is needed by tsx/vitest; the rest are optional native perf addons
+# (bigint-buffer, bufferutil, utf-8-validate) that fall back to pure JS.
+allowBuilds:
+  txline-anchor: true
+  esbuild: true
+  bigint-buffer: false
+  bufferutil: false
+  utf-8-validate: false

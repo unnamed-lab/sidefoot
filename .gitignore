@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+
+# Secrets
+.env
+.env.local
+
+# Cached devnet session (jwt + apiToken + subscribe txSig)
+.session.json
+
+# Recorded replay datasets — large, regenerate by running the recorder
+data/*.jsonl
+data/**/*.jsonl
+!data/.gitkeep
