@@ -7,9 +7,14 @@ hasn't caught up to something that's already been proven true on-chain.
 Every signal it raises is backed by a real on-chain `validate_stat` call a judge
 can independently verify against Solana Explorer — a proof, not a claim.
 
-> **Status:** Day 3 scaffold. The ingestion worker + replay recorder are wired
-> and devnet-verified; the divergence detector (Day 4), on-chain proof step
-> (Day 5), reasoning layer (Day 6), alerts (Day 7) and dashboard (Day 8+) follow.
+> **Status:** ingestion worker + replay recorder (Day 3), pure divergence
+> detector (Day 4), and the on-chain prover (Day 5) are built and devnet-verified.
+> The reasoning layer (Day 6), alerts (Day 7) and dashboard (Day 8+) follow.
+>
+> **Verified proof (devnet):** a real `validate_stat` proof for a goal (fixture
+> 18179759, P1 goals = 2) landed on-chain and resolves on Solana Explorer —
+> [`5X7PRhn…VoxcWF`](https://explorer.solana.com/tx/5X7PRhnVRjXG3qsxnkqZEfrpcVU8Ro8825Shbsip7zYNCxCJ3Uy6Yg7arpSQk9A1qruWy6MKWkGnrJR2W1VoxcWF?cluster=devnet)
+> (~14s proof round-trip, surfaced as `latencyMs`). Reproduce with `pnpm prove`.
 
 ---
 
@@ -95,6 +100,7 @@ solana airdrop 1 <YOUR_WALLET_PUBKEY> --url devnet
 ```bash
 pnpm ingest    # console demo: prints normalized odds ticks + score events live
 pnpm record    # background recorder: appends raw SSE frames to data/*.jsonl
+pnpm prove     # find a real goal and land a validate_stat proof on devnet (prints explorer link)
 pnpm test      # unit tests (no network)
 pnpm build     # emit dist/
 ```
@@ -125,14 +131,20 @@ src/
 ├── env.ts             env → typed config (the only reader of process.env)
 ├── types.ts           domain types: OddsTick, ScoreEvent, VerifiedSignal, DivergenceSignal
 ├── normalize.ts       PURE: OddsPayload → OddsTick[], Scores → ScoreEvent[]
+├── detector.ts        PURE: detectLaggingMarket over proven signals vs odds ticks
+├── prover.ts          ScoreEvent → VerifiedSignal via validate_stat (injectable ports)
+├── explorer.ts        Solana Explorer tx-link helper
 ├── session.ts         auth → subscribe → activate, cached to .session.json
 ├── ingest/
 │   ├── worker.ts      wires streamOdds + streamScores; reconnect + backoff; fan-out
 │   └── recorder.ts    append-only JSONL replay recorder
 ├── recordReplay.ts    `pnpm record` entrypoint (background dataset capture)
 ├── runIngest.ts       `pnpm ingest` entrypoint (live console demo)
+├── proveOne.ts        `pnpm prove` entrypoint (land one real devnet proof)
 └── index.ts           library surface
 ```
 
-`normalize.ts` and (Day 4) the detector are the pure, fully unit-tested core; the
-SSE connections and RPC calls are the imperative shell around them.
+`normalize.ts` and `detector.ts` are the pure, fully unit-tested core; the SSE
+connections, HTTP calls, and RPC/proof calls are the imperative shell around
+them. `prover.ts` keeps its TxLINE HTTP + on-chain calls behind injectable ports
+so its logic is unit-tested without a network or a cluster.
