@@ -121,3 +121,35 @@ export interface DivergenceSignal {
 
 /** Which raw feed a recorded/normalized event came from. */
 export type FeedKind = "odds" | "scores";
+
+// ── Reasoning layer (Day 6) ───────────────────────────────────────────────────
+
+/**
+ * Fixture context handed to the reasoning layer so a one-line explanation can
+ * name the teams, score, and phase. Assembled by the caller from the last known
+ * `ScoreEvent` / `Fixture`; the reasoning layer never fetches it itself.
+ */
+export interface FixtureContext {
+  fixtureId: number;
+  participant1: string;
+  participant2: string;
+  /** Human-readable score, e.g. "1-0"; optional when unknown. */
+  currentScore?: string;
+  /** Readable game-phase label mapped from TxLINE's `GameState`, e.g. "2nd Half". */
+  gamePhase: string;
+  /** Readable label for the proven stat, e.g. "P1 goals". */
+  statLabel: string;
+}
+
+/**
+ * Confidence that the *structural* signal is cleanly supported by its evidence
+ * (more in-window ticks that failed to move ⇒ higher). It is NOT a trade
+ * confidence or a claim the market is "wrong" — see the reasoning boundary.
+ */
+export type Confidence = "low" | "medium" | "high";
+
+/** The reasoning layer's structured output: one actionable line + confidence. */
+export interface SignalExplanation {
+  explanation: string;
+  confidence: Confidence;
+}

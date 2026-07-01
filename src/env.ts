@@ -53,3 +53,23 @@ export function loadEnv(): SidefootEnv {
     dataDir: process.env.SIDEFOOT_DATA_DIR ?? "./data",
   };
 }
+
+/**
+ * Config for the reasoning layer. The Anthropic-compatible client honours
+ * `ANTHROPIC_BASE_URL`, so this can point at Anthropic or any compatible
+ * endpoint (this project's `.env` points it at DeepSeek). Loaded separately from
+ * `loadEnv` so the ingestion/proving paths don't require an LLM key.
+ */
+export interface ReasoningConfig {
+  apiKey: string;
+  baseUrl?: string;
+  model: string;
+}
+
+export function loadReasoningConfig(): ReasoningConfig {
+  return {
+    apiKey: required("ANTHROPIC_API_KEY"),
+    baseUrl: process.env.ANTHROPIC_BASE_URL || undefined,
+    model: process.env.ANTHROPIC_MODEL || "claude-opus-4-8",
+  };
+}
