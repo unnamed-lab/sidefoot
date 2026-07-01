@@ -27,7 +27,26 @@ export {
 } from "./detector";
 
 export { loadEnv, type SidefootEnv } from "./env";
-export { bootstrapSession, type Session, type BootstrapOptions } from "./session";
+export {
+  bootstrapSession,
+  type Session,
+  type BootstrapOptions,
+  type TxoracleProgram,
+  type TxClient,
+} from "./session";
+
+export {
+  proveScoreEvent,
+  goalIncreasedPredicate,
+  isGoalStat,
+  isProofWorthy,
+  defaultPorts,
+  type ProverDeps,
+  type ProverPorts,
+  type ProveOptions,
+  type ProofResult,
+} from "./prover";
+export { explorerTxUrl } from "./explorer";
 
 export {
   startIngestion,

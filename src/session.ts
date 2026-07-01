@@ -15,7 +15,9 @@ import {
 import type { SidefootEnv } from "./env";
 
 /** The concrete `Program<Txoracle>` type `connect` yields, without naming the internal IDL type. */
-type TxoracleProgram = ReturnType<typeof connect>["program"];
+export type TxoracleProgram = ReturnType<typeof connect>["program"];
+/** The authed axios client `createClient` yields. */
+export type TxClient = ReturnType<typeof createClient>;
 
 /**
  * One-time bootstrap of an authenticated TxLINE session, wrapping the exact

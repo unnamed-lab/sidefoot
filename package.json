@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "record": "tsx src/recordReplay.ts",
-    "ingest": "tsx src/runIngest.ts"
+    "ingest": "tsx src/runIngest.ts",
+    "prove": "tsx src/proveOne.ts"
   },
   "dependencies": {
     "txline-anchor": "github:unnamed-lab/txline-anchor",
