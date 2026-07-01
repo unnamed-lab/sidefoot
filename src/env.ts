@@ -1,0 +1,55 @@
+import { config as loadDotenv } from "dotenv";
+import type { Network } from "txline-anchor";
+
+loadDotenv();
+
+/**
+ * Runtime configuration, read once from the environment (`.env` in dev).
+ *
+ * Kept deliberately thin: this is the only place the process reaches for
+ * `process.env`, so the rest of the codebase takes plain values and stays
+ * testable without touching the environment.
+ */
+export interface SidefootEnv {
+  walletSecretKey: string;
+  network: Network;
+  /** Fixture ids to track; empty means "all fixtures". */
+  fixtures: number[];
+  dataDir: string;
+}
+
+function required(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing required env var ${name} (see .env.example)`);
+  return v;
+}
+
+function parseNetwork(v: string | undefined): Network {
+  if (v === "mainnet") return "mainnet";
+  if (v === "devnet" || v === undefined || v === "") return "devnet";
+  throw new Error(`SIDEFOOT_NETWORK must be "devnet" or "mainnet", got "${v}"`);
+}
+
+function parseFixtures(v: string | undefined): number[] {
+  if (!v) return [];
+  return v
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const n = Number(s);
+      if (!Number.isInteger(n)) {
+        throw new Error(`SIDEFOOT_FIXTURES entry "${s}" is not an integer`);
+      }
+      return n;
+    });
+}
+
+export function loadEnv(): SidefootEnv {
+  return {
+    walletSecretKey: required("WALLET_SECRET_KEY"),
+    network: parseNetwork(process.env.SIDEFOOT_NETWORK),
+    fixtures: parseFixtures(process.env.SIDEFOOT_FIXTURES),
+    dataDir: process.env.SIDEFOOT_DATA_DIR ?? "./data",
+  };
+}
