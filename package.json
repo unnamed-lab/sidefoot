@@ -14,14 +14,16 @@
     "test:watch": "vitest",
     "record": "tsx src/recordReplay.ts",
     "ingest": "tsx src/runIngest.ts",
-    "prove": "tsx src/proveOne.ts"
+    "prove": "tsx src/proveOne.ts",
+    "explain": "tsx src/explainOne.ts"
   },
   "dependencies": {
-    "txline-anchor": "github:unnamed-lab/txline-anchor",
+    "@anthropic-ai/sdk": "^0.109.0",
     "@coral-xyz/anchor": "^0.30.1",
-    "@solana/web3.js": "^1.95.4",
     "@solana/spl-token": "^0.4.9",
-    "dotenv": "^16.4.5"
+    "@solana/web3.js": "^1.95.4",
+    "dotenv": "^16.4.5",
+    "txline-anchor": "github:unnamed-lab/txline-anchor"
   },
   "devDependencies": {
     "@types/node": "^22.5.0",

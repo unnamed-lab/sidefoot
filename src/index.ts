@@ -14,7 +14,25 @@ export type {
   DivergenceObservation,
   SeriesObservation,
   FeedKind,
+  FixtureContext,
+  Confidence,
+  SignalExplanation,
 } from "./types";
+
+export { gamePhaseLabel, statKeyLabel } from "./gamePhase";
+
+export { loadReasoningConfig, type ReasoningConfig } from "./env";
+export { explainSignal } from "./reasoning/explain";
+export {
+  SIDEFOOT_EXPLAIN_SYSTEM_PROMPT,
+  buildExplainUserPayload,
+} from "./reasoning/prompt";
+export {
+  parseSignalExplanation,
+  assertWithinBoundary,
+  ExplanationError,
+} from "./reasoning/parse";
+export { createAnthropicPort, type LlmPort } from "./reasoning/llm";
 
 export { normalizeOdds, normalizeScores, parsePct } from "./normalize";
 
