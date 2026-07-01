@@ -34,6 +34,20 @@ export {
 } from "./reasoning/parse";
 export { createAnthropicPort, type LlmPort } from "./reasoning/llm";
 
+export { loadHeraldConfig, type HeraldConfig } from "./env";
+export { formatAlert, type AlertMessage } from "./alert/format";
+export {
+  createHeraldAlerter,
+  type Alerter,
+  type AlertResult,
+} from "./alert/herald";
+export {
+  SidefootPipeline,
+  type PipelineDeps,
+  type PipelineEvent,
+  type Scheduler,
+} from "./pipeline";
+
 export { normalizeOdds, normalizeScores, parsePct } from "./normalize";
 
 export {

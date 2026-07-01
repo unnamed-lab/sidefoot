@@ -9,7 +9,7 @@ dist/
 # Cached devnet session (jwt + apiToken + subscribe txSig)
 .session.json
 
-# Recorded replay datasets — large, regenerate by running the recorder
+# Recorded replay datasets + observability logs — regenerate by running
 data/*.jsonl
 data/**/*.jsonl
 !data/.gitkeep
