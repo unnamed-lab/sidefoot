@@ -80,6 +80,32 @@ export interface VerifiedSignal {
 
 export type DivergenceType = "LAGGING_MARKET";
 
+/**
+ * The odds-side observation for one (market, selection, bookmaker) price series
+ * around a proof — the raw evidence behind a "the market didn't move" claim.
+ */
+export interface SeriesObservation {
+  market: string;
+  selection: string;
+  bookmakerId: number;
+  /** Market's implied probability at the instant the proof landed. */
+  baselineProbability: number;
+  /** Largest absolute probability shift from baseline within the window. */
+  maxShift: number;
+  /** Post-proof ticks in this series considered within the window. */
+  postTickCount: number;
+}
+
+/** Aggregate odds-side evidence attached to a divergence signal. */
+export interface DivergenceObservation {
+  /** Largest absolute probability shift observed across all measured series. */
+  maxObservedShift: number;
+  /** Total post-proof ticks considered across all measured series. */
+  postTickCount: number;
+  /** Per-series detail for the observability log / UI "why" expander. */
+  series: SeriesObservation[];
+}
+
 /** A structural divergence the detector computed. Pure data, no prose. */
 export interface DivergenceSignal {
   type: DivergenceType;
@@ -89,6 +115,8 @@ export interface DivergenceSignal {
   detectedAt: string;
   /** The on-chain proof this signal is anchored to. */
   evidence: VerifiedSignal;
+  /** The odds-side evidence: what the market did (or didn't do) in-window. */
+  observed: DivergenceObservation;
 }
 
 /** Which raw feed a recorded/normalized event came from. */

@@ -11,10 +11,20 @@ export type {
   VerifiedSignal,
   DivergenceSignal,
   DivergenceType,
+  DivergenceObservation,
+  SeriesObservation,
   FeedKind,
 } from "./types";
 
 export { normalizeOdds, normalizeScores, parsePct } from "./normalize";
+
+export {
+  detectLaggingMarket,
+  evaluateLaggingMarket,
+  type LaggingMarketConfig,
+  type LaggingMarketStatus,
+  type LaggingMarketVerdict,
+} from "./detector";
 
 export { loadEnv, type SidefootEnv } from "./env";
 export { bootstrapSession, type Session, type BootstrapOptions } from "./session";
