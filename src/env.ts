@@ -89,6 +89,12 @@ export interface HeraldConfig {
   /** 'important'/'critical' add SMS fallback if the recipient has it. */
   priority: "normal" | "important" | "critical";
   category: "defi" | "governance" | "system" | "marketing" | "security";
+  /**
+   * Optional gateway URL override. The SDK auto-picks production from the
+   * `hrld_live_` prefix; set this to point a sandbox (`hrld_test_`) key at the
+   * deployed gateway (sandbox delivers to devnet-registered channels).
+   */
+  baseUrl?: string;
 }
 
 function parsePriority(v: string | undefined): HeraldConfig["priority"] {
@@ -104,5 +110,6 @@ export function loadHeraldConfig(): HeraldConfig {
     receipt: process.env.HERALD_RECEIPT === "true",
     priority: parsePriority(process.env.HERALD_PRIORITY),
     category: "defi",
+    baseUrl: process.env.HERALD_BASE_URL || undefined,
   };
 }

@@ -16,6 +16,7 @@
     "ingest": "tsx src/runIngest.ts",
     "prove": "tsx src/proveOne.ts",
     "explain": "tsx src/explainOne.ts",
+    "alert": "tsx src/alertOne.ts",
     "start": "tsx src/runPipeline.ts"
   },
   "dependencies": {

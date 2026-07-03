@@ -99,7 +99,12 @@ describe("createHeraldAlerter", () => {
       receipt: false,
     });
     expect(params.subject).toContain("Home FC vs Away FC");
-    expect(params.idempotencyKey).toContain("sidefoot_111_1_");
+    // Deterministic v4-format UUID (Herald requires UUID v4; must be stable per signal).
+    expect(params.idempotencyKey).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+    await alerter.send(SIGNAL, EXPLANATION, CONTEXT);
+    expect(notifyMock.mock.calls[1]![0].idempotencyKey).toBe(params.idempotencyKey);
     expect(res).toEqual({
       notificationId: "notif-1",
       status: "queued",

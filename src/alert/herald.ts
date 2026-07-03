@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Herald } from "@herald-protocol/sdk";
 import type { NetworkConfig } from "txline-anchor";
 import type { DivergenceSignal, FixtureContext, SignalExplanation } from "../types";
@@ -21,21 +22,42 @@ export interface AlertResult {
   recipientRegistered: boolean | null;
 }
 
+export interface DeliveryStatus {
+  status: string;
+  deliveredAt: string | null;
+  deliveryChannel: string | null;
+}
+
 export interface Alerter {
   send(
     signal: DivergenceSignal,
     explanation: SignalExplanation,
     context: FixtureContext
   ): Promise<AlertResult>;
+  /** Poll a notification's delivery status (Herald resolves routing async). */
+  status(notificationId: string): Promise<DeliveryStatus>;
 }
 
-/** Stable idempotency key so a re-fired signal doesn't double-buzz within 24h. */
+/**
+ * Deterministic v4-format UUID so a re-fired signal reuses the same idempotency
+ * key (Herald dedups within 24h) — random `randomUUID()` would lose that, and
+ * Herald's API requires the key to validate as a UUID v4. Derived from the
+ * signal so the same proof always maps to the same key, even across restarts.
+ */
 function idempotencyKey(signal: DivergenceSignal): string {
-  return `sidefoot_${signal.fixtureId}_${signal.statKey}_${signal.evidence.provenAt}`.slice(0, 128);
+  const seed = `sidefoot:${signal.fixtureId}:${signal.statKey}:${signal.evidence.provenAt}`;
+  const b = createHash("sha256").update(seed).digest().subarray(0, 16);
+  b[6] = (b[6]! & 0x0f) | 0x40; // version 4
+  b[8] = (b[8]! & 0x3f) | 0x80; // variant 10xx
+  const h = b.toString("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }
 
 export function createHeraldAlerter(cfg: HeraldConfig, network: NetworkConfig): Alerter {
-  const herald = new Herald({ apiKey: cfg.apiKey });
+  const herald = new Herald({
+    apiKey: cfg.apiKey,
+    ...(cfg.baseUrl ? { baseUrl: cfg.baseUrl } : {}),
+  });
 
   return {
     async send(signal, explanation, context): Promise<AlertResult> {
@@ -56,6 +78,10 @@ export function createHeraldAlerter(cfg: HeraldConfig, network: NetworkConfig): 
         deliveryChannel: res.deliveryChannel,
         recipientRegistered: res.recipientRegistered,
       };
+    },
+    async status(notificationId): Promise<DeliveryStatus> {
+      const s = await herald.getStatus(notificationId);
+      return { status: s.status, deliveredAt: s.deliveredAt, deliveryChannel: s.deliveryChannel };
     },
   };
 }
