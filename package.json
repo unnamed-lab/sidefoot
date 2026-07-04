@@ -17,6 +17,8 @@
     "prove": "tsx src/proveOne.ts",
     "explain": "tsx src/explainOne.ts",
     "alert": "tsx src/alertOne.ts",
+    "feed": "tsx src/buildFeed.ts",
+    "board": "tsx src/buildFeed.ts --board",
     "start": "tsx src/runPipeline.ts"
   },
   "dependencies": {
