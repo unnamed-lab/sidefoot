@@ -1,0 +1,79 @@
+{
+  "generatedAt": "2026-07-01T19:47:20.000Z",
+  "network": "devnet",
+  "explorerCluster": "?cluster=devnet",
+  "sample": true,
+  "fixtures": [
+    {
+      "fixtureId": 18179759,
+      "participant1": "Nigeria",
+      "participant2": "Argentina",
+      "currentScore": "1-0",
+      "gamePhase": "1st Half",
+      "marketLabel": "Match winner — Nigeria",
+      "odds": [
+        { "t": "2026-07-01T19:45:50.000Z", "p": 0.431 },
+        { "t": "2026-07-01T19:45:56.000Z", "p": 0.434 },
+        { "t": "2026-07-01T19:46:02.000Z", "p": 0.437 },
+        { "t": "2026-07-01T19:46:09.000Z", "p": 0.436 },
+        { "t": "2026-07-01T19:46:15.000Z", "p": 0.440 },
+        { "t": "2026-07-01T19:46:21.000Z", "p": 0.443 },
+        { "t": "2026-07-01T19:46:28.000Z", "p": 0.444 },
+        { "t": "2026-07-01T19:46:35.000Z", "p": 0.445 },
+        { "t": "2026-07-01T19:46:41.000Z", "p": 0.446 },
+        { "t": "2026-07-01T19:46:48.000Z", "p": 0.447 },
+        { "t": "2026-07-01T19:46:55.000Z", "p": 0.443 },
+        { "t": "2026-07-01T19:47:02.000Z", "p": 0.520 },
+        { "t": "2026-07-01T19:47:09.000Z", "p": 0.556 }
+      ],
+      "proofs": [
+        {
+          "provenAt": "2026-07-01T19:46:37.166Z",
+          "statLabel": "P1 goals",
+          "txSignature": "5X7PRhnVRjXG3qsxnkqZEfrpcVU8Ro8825Shbsip7zYNCxCJ3Uy6Yg7arpSQk9A1qruWy6MKWkGnrJR2W1VoxcWF",
+          "latencyMs": 14063
+        }
+      ],
+      "signals": [
+        {
+          "detectedAt": "2026-07-01T19:46:57.166Z",
+          "statLabel": "P1 goals",
+          "explanation": "Nigeria's goal is proven on-chain, yet across 3 match-winner updates in the 20s after the proof the odds shifted at most 0.2% — the market hasn't repriced the lead.",
+          "confidence": "high",
+          "maxObservedShift": 0.002,
+          "postTickCount": 3,
+          "windowMs": 20000,
+          "provenAt": "2026-07-01T19:46:37.166Z",
+          "scoreEventReceivedAt": "2026-07-01T19:46:21.541Z",
+          "txSignature": "5X7PRhnVRjXG3qsxnkqZEfrpcVU8Ro8825Shbsip7zYNCxCJ3Uy6Yg7arpSQk9A1qruWy6MKWkGnrJR2W1VoxcWF",
+          "latencyMs": 14063
+        }
+      ]
+    },
+    {
+      "fixtureId": 18179812,
+      "participant1": "Brazil",
+      "participant2": "Spain",
+      "currentScore": "1-0",
+      "gamePhase": "2nd Half",
+      "marketLabel": "Match winner — Brazil",
+      "odds": [
+        { "t": "2026-07-01T20:50:00.000Z", "p": 0.610 },
+        { "t": "2026-07-01T20:50:07.000Z", "p": 0.612 },
+        { "t": "2026-07-01T20:50:14.000Z", "p": 0.615 },
+        { "t": "2026-07-01T20:50:21.000Z", "p": 0.618 },
+        { "t": "2026-07-01T20:50:28.000Z", "p": 0.664 },
+        { "t": "2026-07-01T20:50:35.000Z", "p": 0.690 },
+        { "t": "2026-07-01T20:50:42.000Z", "p": 0.702 }
+      ],
+      "proofs": [
+        {
+          "provenAt": "2026-07-01T20:50:23.000Z",
+          "statLabel": "P1 goals",
+          "latencyMs": 13120
+        }
+      ],
+      "signals": []
+    }
+  ]
+}

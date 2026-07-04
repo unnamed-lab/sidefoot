@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #0b0f14;
+  color: #e6edf3;
+}
+
+/* Thin, unobtrusive scrollbars for the signal feed. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e2733 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #1e2733;
+  border-radius: 8px;
+}

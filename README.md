@@ -114,13 +114,19 @@ solana airdrop 1 <YOUR_WALLET_PUBKEY> --url devnet
 ## Run
 
 ```bash
+pnpm start     # the full pipeline: ingest → prove → detect → explain → alert (Herald)
 pnpm ingest    # console demo: prints normalized odds ticks + score events live
 pnpm record    # background recorder: appends raw SSE frames to data/*.jsonl
 pnpm prove     # find a real goal and land a validate_stat proof on devnet (prints explorer link)
 pnpm explain   # run the reasoning layer on a synthetic signal (needs ANTHROPIC_* in .env)
+pnpm alert     # send one synthetic signal to Telegram via Herald (needs HERALD_* in .env)
 pnpm test      # unit tests (no network)
 pnpm build     # emit dist/
 ```
+
+The **dashboard** (Next.js + Recharts) lives in [`dashboard/`](dashboard/) and
+renders the pipeline's output — odds timeline, on-chain proof markers, and the
+signal feed. See its [README](dashboard/README.md).
 
 The first run does a one-time on-chain `subscribe` + token activation and caches
 the session to `.session.json` (gitignored), so later runs reuse it instead of
@@ -157,6 +163,10 @@ src/
 │   └── explain.ts     port → parse → boundary
 ├── gamePhase.ts       GameState / statKey → readable labels
 ├── explorer.ts        Solana Explorer tx-link helper
+├── alert/
+│   ├── format.ts      PURE: signal → subject + Telegram-markdown body
+│   └── herald.ts      Alerter over @herald-protocol/sdk (send + delivery status)
+├── pipeline.ts        SidefootPipeline: ingest→prove→window→detect→explain→alert
 ├── session.ts         auth → subscribe → activate, cached to .session.json
 ├── ingest/
 │   ├── worker.ts      wires streamOdds + streamScores; reconnect + backoff; fan-out
@@ -164,7 +174,12 @@ src/
 ├── recordReplay.ts    `pnpm record` entrypoint (background dataset capture)
 ├── runIngest.ts       `pnpm ingest` entrypoint (live console demo)
 ├── proveOne.ts        `pnpm prove` entrypoint (land one real devnet proof)
+├── explainOne.ts      `pnpm explain` entrypoint (reasoning on a synthetic signal)
+├── alertOne.ts        `pnpm alert` entrypoint (one Herald/Telegram send + poll)
+├── runPipeline.ts     `pnpm start` entrypoint (full live pipeline + observability log)
 └── index.ts           library surface
+
+dashboard/             Next.js + Tailwind + Recharts single-screen demo UI
 ```
 
 `normalize.ts` and `detector.ts` are the pure, fully unit-tested core; the SSE

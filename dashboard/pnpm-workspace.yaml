@@ -1,0 +1,3 @@
+# Standalone pnpm workspace root for the dashboard, isolated from the parent
+# sidefoot package (its own lockfile + node_modules; deployed separately).
+packages: []
