@@ -18,16 +18,21 @@ export function FixtureSelector({
           <button
             key={f.fixtureId}
             onClick={() => onSelect(f.fixtureId)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+            className={`group flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all ${
               active
-                ? "border-odds/50 bg-odds/10 text-ink"
-                : "border-border bg-panel text-muted hover:border-odds/30 hover:text-ink"
+                ? "border-proof/50 bg-proof/10 text-ink"
+                : "border-line bg-panel text-muted hover:border-proof/30 hover:text-ink"
             }`}
           >
-            <span className="font-medium">
-              {f.participant1} v {f.participant2}
+            <span className="font-display text-sm uppercase tracking-wide">
+              {f.participant1} <span className="text-muted-2">v</span> {f.participant2}
             </span>
-            {hasSignal && <span className="h-2 w-2 rounded-full bg-signal" title="Active signal" />}
+            {hasSignal && (
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping-soft rounded-full bg-signal" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-signal" />
+              </span>
+            )}
           </button>
         );
       })}

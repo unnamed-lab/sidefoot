@@ -13,5 +13,5 @@ export const shortSig = (sig: string): string => `${sig.slice(0, 4)}…${sig.sli
 export const confidenceClasses: Record<Confidence, string> = {
   high: "text-proof border-proof/40 bg-proof/10",
   medium: "text-signal border-signal/40 bg-signal/10",
-  low: "text-muted border-border bg-white/5",
+  low: "text-muted border-line bg-white/5",
 };

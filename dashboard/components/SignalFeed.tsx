@@ -6,34 +6,31 @@ import { explorerTxUrl } from "../lib/feed";
 import { clockTime, pct, secs, shortSig, confidenceClasses } from "../lib/format";
 
 /**
- * The right-hand live signal feed. Each entry leads with the reasoning layer's
- * one-line explanation and a confidence label; a "why" expander opens the raw,
- * checkable evidence — the honest timestamps (proof time vs the raw SSE receipt),
- * the odds the detector compared, and a link to the on-chain proof itself.
+ * The live signal feed. Each entry leads with the reasoning layer's one-line
+ * explanation + a confidence label; the "why" expander opens the raw, checkable
+ * evidence — the honest raw-SSE-vs-proof timestamps, the odds compared, and a
+ * link to the on-chain proof.
  */
-export function SignalFeed({
-  fixture,
-  explorerCluster,
-}: {
-  fixture: FixtureFeed;
-  explorerCluster: string;
-}) {
+export function SignalFeed({ fixture, explorerCluster }: { fixture: FixtureFeed; explorerCluster: string }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h3 className="text-sm font-semibold text-ink">Signals</h3>
-        <span className="text-xs text-muted">{fixture.signals.length} fired</span>
+      <div className="flex items-center justify-between border-b border-line px-4 py-3">
+        <h3 className="kicker text-ink">Signal feed</h3>
+        <span className="rounded-full bg-base-2 px-2 py-0.5 font-mono text-xs text-muted ring-1 ring-line">
+          {fixture.signals.length} fired
+        </span>
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {fixture.signals.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted">
-            No divergence yet. Sidefoot only fires when a proven score event isn&apos;t matched by
-            odds movement in-window.
-          </p>
+          <div className="flex h-full flex-col items-center justify-center gap-2 py-10 text-center">
+            <span className="text-2xl">🟢</span>
+            <p className="max-w-[15rem] text-sm text-muted">
+              Market&apos;s keeping pace. Sidefoot only fires when a proven goal isn&apos;t matched by
+              odds movement in-window.
+            </p>
+          </div>
         ) : (
-          fixture.signals.map((s, i) => (
-            <SignalCard key={i} signal={s} explorerCluster={explorerCluster} />
-          ))
+          fixture.signals.map((s, i) => <SignalCard key={i} signal={s} explorerCluster={explorerCluster} />)
         )}
       </div>
     </div>
@@ -43,44 +40,39 @@ export function SignalFeed({
 function SignalCard({ signal, explorerCluster }: { signal: SignalItem; explorerCluster: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-lg border border-border bg-panel-2 p-3">
+    <div className="animate-rise-in rounded-xl border border-signal/25 bg-panel-2 p-3 shadow-glow-signal">
       <div className="mb-2 flex items-center justify-between">
-        <span className="flex items-center gap-2 text-xs text-muted">
-          <span className="h-2 w-2 rounded-full bg-signal" />
+        <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-signal">
+          <span className="h-1.5 w-1.5 rounded-full bg-signal" />
           Lagging market · {clockTime(signal.detectedAt)}
         </span>
-        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${confidenceClasses[signal.confidence]}`}>
+        <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase ${confidenceClasses[signal.confidence]}`}>
           {signal.confidence}
         </span>
       </div>
 
-      <p className="text-sm leading-snug text-ink">{signal.explanation}</p>
+      <p className="text-[15px] leading-snug text-ink">{signal.explanation}</p>
 
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="mt-2 text-xs text-odds hover:underline"
-      >
-        {open ? "hide evidence" : "why?"}
+      <button onClick={() => setOpen((v) => !v)} className="mt-2 font-mono text-xs text-market hover:underline">
+        {open ? "− hide evidence" : "+ why?"}
       </button>
 
       {open && (
-        <dl className="mt-2 space-y-1 border-t border-border pt-2 text-xs">
+        <dl className="mt-2 space-y-1 border-t border-line pt-2 font-mono text-xs">
           <Row k="Proven stat" v={signal.statLabel} />
-          <Row k="Predicate proved on-chain" v={`${secs(signal.latencyMs)} round-trip`} />
-          <Row k="Score event received (raw SSE)" v={clockTime(signal.scoreEventReceivedAt)} />
+          <Row k="Proof round-trip" v={secs(signal.latencyMs)} />
+          <Row k="Score received (raw SSE)" v={clockTime(signal.scoreEventReceivedAt)} />
           <Row k="Proof landed (verified)" v={clockTime(signal.provenAt)} />
-          <Row k="Market response" v={`${signal.postTickCount} update(s) in ${secs(signal.windowMs)}, max shift ${pct(signal.maxObservedShift, 2)}`} />
+          <Row k="Market response" v={`${signal.postTickCount} in ${secs(signal.windowMs)}, max ${pct(signal.maxObservedShift, 2)}`} />
           {signal.txSignature && (
-            <div className="pt-1">
-              <a
-                href={explorerTxUrl({ explorerCluster }, signal.txSignature)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-proof hover:underline"
-              >
-                🔗 verify proof {shortSig(signal.txSignature)} on Explorer →
-              </a>
-            </div>
+            <a
+              href={explorerTxUrl({ explorerCluster }, signal.txSignature)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 flex items-center gap-1 text-proof hover:underline"
+            >
+              🔗 verify {shortSig(signal.txSignature)} on Explorer →
+            </a>
           )}
         </dl>
       )}
