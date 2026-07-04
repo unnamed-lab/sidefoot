@@ -48,6 +48,9 @@ export default function DashboardPage() {
             {feed && (
               <span className="rounded-full border border-line bg-panel px-2 py-0.5 text-muted">{feed.network}</span>
             )}
+            <Link href="/fixtures" className="rounded-full border border-line bg-panel px-2 py-0.5 text-muted hover:text-ink">
+              fixtures
+            </Link>
             <Link href="/" className="rounded-full border border-line bg-panel px-2 py-0.5 text-muted hover:text-ink">
               ← home
             </Link>

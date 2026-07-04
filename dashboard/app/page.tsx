@@ -13,6 +13,9 @@ export default function Landing() {
       <nav className="relative z-20 mx-auto flex max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
         <Wordmark />
         <div className="flex items-center gap-3">
+          <Link href="/fixtures" className="hidden font-mono text-xs text-muted hover:text-ink sm:block">
+            Fixtures
+          </Link>
           <a href={REPO} target="_blank" rel="noopener noreferrer" className="hidden font-mono text-xs text-muted hover:text-ink sm:block">
             GitHub ↗
           </a>

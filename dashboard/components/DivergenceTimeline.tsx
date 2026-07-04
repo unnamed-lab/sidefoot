@@ -33,8 +33,31 @@ export function DivergenceTimeline({
   explorerCluster: string;
 }) {
   const data = fixture.odds.map((o) => ({ x: Date.parse(o.t), p: o.p }));
+
+  // Real captures can be odds-only or (pre-match) proof-only. Never crash on an
+  // empty series — show an honest empty state instead (dataviz: empty-data-state).
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[340px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line text-center">
+        <p className="max-w-sm text-sm text-muted">No live odds captured for this fixture in this window.</p>
+        {fixture.proofs.map((pr, i) => (
+          <a
+            key={i}
+            href={pr.txSignature ? explorerTxUrl({ explorerCluster }, pr.txSignature) : "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg border border-proof/30 bg-proof/5 px-3 py-2 font-mono text-xs text-proof hover:border-proof/60"
+          >
+            <span className="h-2 w-2 rotate-45 bg-proof" /> {pr.statLabel} proven on-chain · {secs(pr.latencyMs)}
+            {pr.txSignature ? " · verify ↗" : ""}
+          </a>
+        ))}
+      </div>
+    );
+  }
+
   const nearestP = (epoch: number) =>
-    data.reduce((b, d) => (Math.abs(d.x - epoch) < Math.abs(b.x - epoch) ? d : b), data[0]).p;
+    data.reduce((b, d) => (Math.abs(d.x - epoch) < Math.abs(b.x - epoch) ? d : b), data[0]!).p;
 
   const proofPts = fixture.proofs.map((pr) => ({
     x: Date.parse(pr.provenAt),
