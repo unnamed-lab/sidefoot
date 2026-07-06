@@ -6,6 +6,7 @@ import {
   getScoresSnapshot,
   getOddsSnapshot,
   getOddsUpdates,
+  decodeStatKey,
   type Fixture,
 } from "txline-anchor";
 import { loadEnv, loadReasoningConfig } from "./env";
@@ -44,6 +45,7 @@ interface FeedFixture {
   participant1: string;
   participant2: string;
   gamePhase: string;
+  currentScore?: string;
   marketLabel: string;
   odds: { t: string; p: number }[];
   proofs: { provenAt: string; statLabel: string; txSignature?: string; latencyMs: number }[];
@@ -60,6 +62,8 @@ interface BoardFixture {
   status: "live" | "scheduled" | "finished";
   /** True when TxLINE is quoting odds for it right now (may be pre-match). */
   trading: boolean;
+  /** "1-0" for started matches, else undefined. */
+  score?: string;
 }
 
 const LIVE_STATES = new Set(["1H", "H1", "2H", "H2", "HT", "ET", "ET1", "ET2", "PEN", "LIVE", "INPLAY", "IN_PLAY"]);
@@ -164,10 +168,31 @@ async function captureOdds(session: Session, fixtureId: number): Promise<OddsTic
   return ticks;
 }
 
+/** Goals for one side (base 1 = P1, 2 = P2): full-game total if present, else sum of periods. */
+function goalsFor(events: ScoreEvent[], base: 1 | 2): number {
+  let full = 0;
+  let hasFull = false;
+  const periods = new Map<number, number>();
+  for (const e of events) {
+    if (e.statKey === base) {
+      full = Math.max(full, e.value);
+      hasFull = true;
+    } else {
+      try {
+        const d = decodeStatKey(e.statKey);
+        if (d.base === base && d.period !== "FULL_GAME") periods.set(e.statKey, Math.max(periods.get(e.statKey) ?? 0, e.value));
+      } catch {
+        /* not a decodable stat */
+      }
+    }
+  }
+  return hasFull ? full : [...periods.values()].reduce((a, b) => a + b, 0);
+}
+
 async function fixtureScores(
   session: Session,
   fixtureId: number
-): Promise<{ goal?: ScoreEvent; phase: string; raw: string; started: boolean }> {
+): Promise<{ goal?: ScoreEvent; phase: string; raw: string; started: boolean; score?: string }> {
   const now = new Date().toISOString();
   const events: ScoreEvent[] = [];
   let raw = "";
@@ -182,12 +207,9 @@ async function fixtureScores(
     }
   }
   const goals = events.filter(isProofWorthy);
-  return {
-    goal: goals[goals.length - 1],
-    phase: gamePhaseLabel(raw || events[events.length - 1]?.gameState || ""),
-    raw,
-    started: events.length > 0,
-  };
+  const started = events.length > 0;
+  const score = started ? `${goalsFor(events, 1)}-${goalsFor(events, 2)}` : undefined;
+  return { goal: goals[goals.length - 1], phase: gamePhaseLabel(raw || events[events.length - 1]?.gameState || ""), raw, started, score };
 }
 
 async function buildFixture(
@@ -198,7 +220,12 @@ async function buildFixture(
 ): Promise<FeedFixture | null> {
   const fixtureId = fx.FixtureId;
   console.log(`[feed] ${fixtureId} — ${fx.Participant1} v ${fx.Participant2}`);
-  const { goal, phase } = await fixtureScores(session, fixtureId);
+  const { goal, phase, raw, started, score } = await fixtureScores(session, fixtureId);
+  // Kickoff-time status is reliable; TxLINE GameState isn't. Use an in-play
+  // label if we have one, else the status word.
+  const status = classifyStatus(raw, normStart(fx.StartTime), started);
+  const gamePhase =
+    status === "live" ? (phase && phase !== "scheduled" ? phase : "Live") : status === "finished" ? "Full Time" : "Pre-match";
 
   const ticks = await captureOdds(session, fixtureId);
   const picked = pickSeries(ticks, fx.Participant1);
@@ -225,7 +252,7 @@ async function buildFixture(
         console.log(`[feed]   verdict=${verdict.status} ticks=${verdict.postTickCount}`);
         const signal = detectLaggingMarket(res.signal, seriesTicks, CONFIG);
         if (signal) {
-          const context = { fixtureId, participant1: fx.Participant1, participant2: fx.Participant2, gamePhase: phase, statLabel: statKeyLabel(signal.statKey) };
+          const context = { fixtureId, participant1: fx.Participant1, participant2: fx.Participant2, gamePhase, statLabel: statKeyLabel(signal.statKey) };
           let ex: SignalExplanation = {
             explanation: `${fx.Participant1}'s ${context.statLabel} is proven on-chain, but across ${signal.observed.postTickCount} ${picked?.label ?? "market"} update(s) in the ${CONFIG.expectedMoveWindowMs / 1000}s after the proof the odds shifted at most ${(signal.observed.maxObservedShift * 100).toFixed(2)}%.`,
             confidence: signal.observed.postTickCount >= 3 ? "high" : "medium",
@@ -266,7 +293,8 @@ async function buildFixture(
     fixtureId,
     participant1: fx.Participant1,
     participant2: fx.Participant2,
-    gamePhase: phase || "Pre-match",
+    gamePhase,
+    ...(score ? { currentScore: score } : {}),
     marketLabel: picked?.label ?? "Match winner",
     odds,
     proofs,
@@ -301,7 +329,7 @@ async function main(): Promise<void> {
     } catch {
       /* ignore */
     }
-    const { goal, phase, raw, started } = await fixtureScores(session, fx.FixtureId);
+    const { goal, phase, raw, started, score } = await fixtureScores(session, fx.FixtureId);
     const startTime = normStart(fx.StartTime);
     board.push({
       fixtureId: fx.FixtureId,
@@ -312,6 +340,7 @@ async function main(): Promise<void> {
       startTime,
       status: classifyStatus(raw, startTime, started),
       trading: hasOdds,
+      score,
     });
     ranked.push({ fx, hasOdds, hasGoal: !!goal, phase, score: (hasOdds ? 2 : 0) + (goal ? 1 : 0) });
   }
