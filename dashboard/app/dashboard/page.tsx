@@ -10,18 +10,38 @@ import { ScorePhaseHeader } from "../../components/ScorePhaseHeader";
 import { DivergenceTimeline } from "../../components/DivergenceTimeline";
 import { SignalFeed } from "../../components/SignalFeed";
 
+const REFRESH_MS = 90_000;
+
 export default function DashboardPage() {
   const [feed, setFeed] = useState<DashboardFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<number>(Date.now());
 
+  // Poll feed.json every ~90s so the board reflects fresh captures without a
+  // manual reload (the useQuery refetch-interval pattern, no extra dependency).
   useEffect(() => {
-    loadFeed()
-      .then((f) => {
-        setFeed(f);
-        setSelectedId(f.fixtures[0]?.fixtureId ?? null);
-      })
-      .catch((e) => setError(String(e?.message ?? e)));
+    let active = true;
+    const paramId = Number(new URLSearchParams(window.location.search).get("fixture")) || null;
+    const load = () =>
+      loadFeed()
+        .then((f) => {
+          if (!active) return;
+          setFeed(f);
+          setUpdatedAt(Date.now());
+          setError(null);
+          setSelectedId((prev) => {
+            const desired = prev ?? paramId;
+            return desired && f.fixtures.some((x) => x.fixtureId === desired) ? desired : f.fixtures[0]?.fixtureId ?? null;
+          });
+        })
+        .catch((e) => active && setError(String(e?.message ?? e)));
+    load();
+    const id = setInterval(load, REFRESH_MS);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
   }, []);
 
   const fixture = useMemo(
@@ -40,6 +60,12 @@ export default function DashboardPage() {
             <Wordmark />
           </Link>
           <div className="flex items-center gap-2 font-mono text-xs">
+            {feed && (
+              <span className="flex items-center gap-1.5 rounded-full border border-line bg-panel px-2 py-0.5 text-muted" title="Auto-refreshes every 90s">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-proof" />
+                live · {clockTime(new Date(updatedAt).toISOString())}
+              </span>
+            )}
             {feed?.sample && (
               <span className="rounded-full border border-signal/40 bg-signal/10 px-2 py-0.5 text-signal">
                 sample replay

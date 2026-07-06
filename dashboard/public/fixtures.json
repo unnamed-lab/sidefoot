@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-04T16:50:15.654Z",
+  "generatedAt": "2026-07-06T17:40:04.761Z",
   "network": "devnet",
   "competitions": [
     {
@@ -43,54 +43,15 @@
       "competitionId": 72,
       "fixtures": [
         {
-          "fixtureId": 18179549,
-          "participant1": "Colombia",
-          "participant2": "Ghana",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-04T01:30:00.000Z",
-          "status": "finished",
-          "trading": false
-        },
-        {
-          "fixtureId": 18185036,
-          "participant1": "Canada",
-          "participant2": "Morocco",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-04T17:00:00.000Z",
-          "status": "scheduled",
-          "trading": true
-        },
-        {
-          "fixtureId": 18188721,
-          "participant1": "Paraguay",
-          "participant2": "France",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-04T21:00:00.000Z",
-          "status": "scheduled",
-          "trading": false
-        },
-        {
-          "fixtureId": 18187298,
-          "participant1": "Brazil",
-          "participant2": "Norway",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-05T20:00:00.000Z",
-          "status": "scheduled",
-          "trading": false
-        },
-        {
           "fixtureId": 18192996,
           "participant1": "Mexico",
           "participant2": "England",
           "competition": "World Cup",
           "competitionId": 72,
-          "startTime": "2026-07-06T00:00:00.000Z",
-          "status": "scheduled",
-          "trading": false
+          "startTime": "2026-07-06T01:00:00.000Z",
+          "status": "finished",
+          "trading": false,
+          "score": "2-3"
         },
         {
           "fixtureId": 18198205,
@@ -129,6 +90,26 @@
           "competition": "World Cup",
           "competitionId": 72,
           "startTime": "2026-07-07T20:00:00.000Z",
+          "status": "scheduled",
+          "trading": false
+        },
+        {
+          "fixtureId": 18209181,
+          "participant1": "France",
+          "participant2": "Morocco",
+          "competition": "World Cup",
+          "competitionId": 72,
+          "startTime": "2026-07-09T20:00:00.000Z",
+          "status": "scheduled",
+          "trading": false
+        },
+        {
+          "fixtureId": 18213979,
+          "participant1": "Norway",
+          "participant2": "England",
+          "competition": "World Cup",
+          "competitionId": 72,
+          "startTime": "2026-07-11T21:00:00.000Z",
           "status": "scheduled",
           "trading": false
         }

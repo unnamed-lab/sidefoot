@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { BoardFixture, Competition, FixtureStatus, FixturesBoardData } from "../lib/fixtures";
+import { liveStatus, type BoardFixture, type Competition, type FixtureStatus, type FixturesBoardData } from "../lib/fixtures";
 
 const STATUS_FILTERS: { key: "all" | FixtureStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -17,7 +17,7 @@ function kickoff(iso: string): string {
   return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-export function FixturesBoard({ data }: { data: FixturesBoardData }) {
+export function FixturesBoard({ data, capturedIds = new Set() }: { data: FixturesBoardData; capturedIds?: Set<number> }) {
   const [comp, setComp] = useState<number | "all">("all");
   const [status, setStatus] = useState<"all" | FixtureStatus>("all");
 
@@ -25,7 +25,7 @@ export function FixturesBoard({ data }: { data: FixturesBoardData }) {
   const counts = useMemo(() => {
     const all = data.competitions.flatMap((c) => c.fixtures);
     return {
-      live: all.filter((f) => f.status === "live").length,
+      live: all.filter((f) => liveStatus(f) === "live").length,
       trading: all.filter((f) => f.trading).length,
     };
   }, [data]);
@@ -33,7 +33,7 @@ export function FixturesBoard({ data }: { data: FixturesBoardData }) {
   const competitions = useMemo(() => {
     return data.competitions
       .filter((c) => comp === "all" || c.competitionId === comp)
-      .map((c) => ({ ...c, fixtures: c.fixtures.filter((f) => status === "all" || f.status === status) }))
+      .map((c) => ({ ...c, fixtures: c.fixtures.filter((f) => status === "all" || liveStatus(f) === status) }))
       .filter((c) => c.fixtures.length > 0);
   }, [data, comp, status]);
 
@@ -76,7 +76,7 @@ export function FixturesBoard({ data }: { data: FixturesBoardData }) {
       ) : (
         <div className="space-y-8">
           {competitions.map((c) => (
-            <CompetitionGroup key={c.competitionId} competition={c} />
+            <CompetitionGroup key={c.competitionId} competition={c} capturedIds={capturedIds} />
           ))}
         </div>
       )}
@@ -84,7 +84,7 @@ export function FixturesBoard({ data }: { data: FixturesBoardData }) {
   );
 }
 
-function CompetitionGroup({ competition }: { competition: Competition }) {
+function CompetitionGroup({ competition, capturedIds }: { competition: Competition; capturedIds: Set<number> }) {
   return (
     <section>
       <div className="mb-3 flex items-center gap-3">
@@ -94,43 +94,44 @@ function CompetitionGroup({ competition }: { competition: Competition }) {
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {competition.fixtures.map((f) => (
-          <FixtureRow key={f.fixtureId} fixture={f} />
+          <FixtureRow key={f.fixtureId} fixture={f} captured={capturedIds.has(f.fixtureId)} />
         ))}
       </div>
     </section>
   );
 }
 
-function FixtureRow({ fixture }: { fixture: BoardFixture }) {
-  const clickable = fixture.trading || fixture.status === "live";
-  const inner = (
-    <div
+function FixtureRow({ fixture, captured }: { fixture: BoardFixture; captured: boolean }) {
+  const st = liveStatus(fixture);
+  return (
+    <Link
+      href={`/dashboard?fixture=${fixture.fixtureId}`}
+      title={captured ? "Open on the live board" : "Not captured yet — opens the live board"}
       className={`flex items-center justify-between gap-3 rounded-xl border bg-panel px-4 py-3 transition-colors ${
-        clickable ? "border-line hover:border-proof/40" : "border-line/60"
+        captured ? "border-proof/30 hover:border-proof/60" : "border-line hover:border-line/80"
       }`}
     >
       <div className="min-w-0">
         <p className="truncate font-display text-sm uppercase tracking-wide text-ink">
           {fixture.participant1} <span className="text-muted-2">v</span> {fixture.participant2}
         </p>
-        <p className="mt-0.5 font-mono text-[11px] text-muted">{kickoff(fixture.startTime)}</p>
+        <p className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-muted">
+          {kickoff(fixture.startTime)}
+          {captured && <span className="text-proof">· on board ↗</span>}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        {fixture.trading && (
-          <span className="rounded-full border border-market/30 bg-market/10 px-2 py-0.5 font-mono text-[10px] uppercase text-market">
-            odds
+        {fixture.score && st !== "scheduled" && (
+          <span className="rounded-md bg-base-2 px-2 py-0.5 font-mono text-xs font-bold tabular-nums text-ink ring-1 ring-line">
+            {fixture.score}
           </span>
         )}
-        <StatusBadge status={fixture.status} />
+        {fixture.trading && (
+          <span className="rounded-full border border-market/30 bg-market/10 px-2 py-0.5 font-mono text-[10px] uppercase text-market">odds</span>
+        )}
+        <StatusBadge status={st} />
       </div>
-    </div>
-  );
-  return clickable ? (
-    <Link href="/dashboard" title="Track on the live board">
-      {inner}
     </Link>
-  ) : (
-    inner
   );
 }
 

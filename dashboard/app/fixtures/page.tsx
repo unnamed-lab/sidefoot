@@ -3,15 +3,32 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loadFixtures, type FixturesBoardData } from "../../lib/fixtures";
+import { loadFeed } from "../../lib/feed";
 import { Wordmark } from "../../components/Wordmark";
 import { FixturesBoard } from "../../components/FixturesBoard";
 
 export default function FixturesPage() {
   const [data, setData] = useState<FixturesBoardData | null>(null);
+  const [captured, setCaptured] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadFixtures().then(setData).catch((e) => setError(String(e?.message ?? e)));
+    let active = true;
+    const load = () => {
+      loadFixtures()
+        .then((d) => active && (setData(d), setError(null)))
+        .catch((e) => active && setError(String(e?.message ?? e)));
+      // Which fixtures the live board actually has data for.
+      loadFeed()
+        .then((f) => active && setCaptured(new Set(f.fixtures.map((x) => x.fixtureId))))
+        .catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 90_000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
   }, []);
 
   return (
