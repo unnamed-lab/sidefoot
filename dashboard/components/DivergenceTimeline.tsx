@@ -9,6 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceArea,
+  ReferenceLine,
   ReferenceDot,
   ResponsiveContainer,
 } from "recharts";
@@ -19,27 +20,28 @@ import { clockTime, pct, secs } from "../lib/format";
 const C = { market: "#4B93FF", proof: "#2DE38A", signal: "#FF7A45", grid: "#17211C", axis: "#7E9188" };
 
 /**
- * The centre timeline — market-implied win probability (blue) read left→right
- * against on-chain proof markers (green diamond → the validate_stat tx) and the
- * amber window Sidefoot watched. Flat odds across the amber band is the signal.
- * dataviz: one axis, recessive grid, direct labels, hover crosshair.
+ * The centre timeline — implied win probability (blue) across the match.
+ *
+ * When kickoff time is known it uses a MATCH-CLOCK axis (0'→90' + extra time,
+ * with KO / HT / FT markers), so a viewer reads the market against match time.
+ * Proven score events (green diamond → validate_stat tx) and the amber window
+ * Sidefoot watched sit on the same axis; flat odds across the band is the signal.
  */
-export function DivergenceTimeline({
-  fixture,
-  explorerCluster,
-}: {
-  fixture: FixtureFeed;
-  explorerCluster: string;
-}) {
-  const data = fixture.odds.map((o) => ({ x: Date.parse(o.t), p: o.p }));
-  const xs = data.map((d) => d.x);
-  const xRange = data.length ? Math.max(...xs) - Math.min(...xs) : 0;
-  // A finished match's captured odds cluster at settlement (a degenerate series);
-  // don't draw a misleading vertical spike — show the proof-focused view instead.
-  const degenerate = data.length < 3 || xRange < 60_000;
+export function DivergenceTimeline({ fixture, explorerCluster }: { fixture: FixtureFeed; explorerCluster: string }) {
+  const kickoff = fixture.startTime ? Date.parse(fixture.startTime) : NaN;
+  // Match-clock only once the match has actually started (there's in-play odds);
+  // pre-match odds would otherwise map to huge negative minutes. Fall back to
+  // normal time-of-day for pre-match fixtures.
+  const hasInPlay = Number.isFinite(kickoff) && fixture.odds.some((o) => Date.parse(o.t) >= kickoff);
+  const matchClock = Number.isFinite(kickoff) && hasInPlay;
+  const toX = (iso: string) => (matchClock ? (Date.parse(iso) - kickoff) / 60_000 : Date.parse(iso));
 
-  const openTx = (sig?: string) =>
-    sig && window.open(explorerTxUrl({ explorerCluster }, sig), "_blank", "noopener");
+  const data = fixture.odds.map((o) => ({ x: toX(o.t), p: o.p }));
+  const wallXs = fixture.odds.map((o) => Date.parse(o.t));
+  const wallRange = wallXs.length ? Math.max(...wallXs) - Math.min(...wallXs) : 0;
+  const degenerate = data.length < 3 || wallRange < 60_000;
+
+  const openTx = (sig?: string) => sig && window.open(explorerTxUrl({ explorerCluster }, sig), "_blank", "noopener");
 
   if (data.length === 0 || degenerate) {
     return (
@@ -63,15 +65,16 @@ export function DivergenceTimeline({
     );
   }
 
-  const nearestP = (epoch: number) => data.reduce((b, d) => (Math.abs(d.x - epoch) < Math.abs(b.x - epoch) ? d : b), data[0]!).p;
+  const nearestP = (x: number) => data.reduce((b, d) => (Math.abs(d.x - x) < Math.abs(b.x - x) ? d : b), data[0]!).p;
   const proofPts = fixture.proofs.map((pr) => {
-    const epoch = Date.parse(pr.provenAt);
-    return { x: epoch, y: nearestP(epoch), statLabel: pr.statLabel, latencyMs: pr.latencyMs, txSignature: pr.txSignature };
+    const x = toX(pr.provenAt);
+    return { x, y: nearestP(x), statLabel: pr.statLabel, latencyMs: pr.latencyMs, txSignature: pr.txSignature };
   });
+  const windowMin = (ms: number) => (matchClock ? ms / 60_000 : ms);
   const catchUps = fixture.signals
     .map((s) => {
-      const base = nearestP(Date.parse(s.provenAt));
-      const end = Date.parse(s.provenAt) + s.windowMs;
+      const base = nearestP(toX(s.provenAt));
+      const end = toX(s.provenAt) + windowMin(s.windowMs);
       const jump = data.find((d) => d.x > end && Math.abs(d.p - base) >= 0.04);
       return jump ? { x: jump.x, y: jump.p } : null;
     })
@@ -81,40 +84,72 @@ export function DivergenceTimeline({
   const lo = Math.max(0, Math.min(...ps) - 0.04);
   const hi = Math.min(1, Math.max(...ps) + 0.05);
 
+  // Axis config: match-clock (minutes) vs wall-clock (fallback).
+  let xDomain: [number | string, number | string] = ["dataMin", "dataMax"];
+  let xTicks: number[] | undefined;
+  let xFmt = (v: number) => clockTime(new Date(v).toISOString());
+  if (matchClock) {
+    const maxM = Math.max(90, ...data.map((d) => d.x));
+    const matchEnd = Math.min(130, Math.ceil(Math.max(90, maxM) / 15) * 15);
+    const minM = Math.min(0, ...data.map((d) => d.x));
+    xDomain = [Math.floor(minM), matchEnd];
+    xTicks = [0, 15, 30, 45, 60, 75, 90, 105, 120].filter((t) => t <= matchEnd);
+    xFmt = (v: number) => `${Math.round(v)}'`;
+  }
+  const tipLabel = (v: number) => (matchClock ? `${Math.round(v)}'` : clockTime(new Date(v).toISOString()));
+
   return (
     <div>
       <p className="mb-1 font-mono text-[11px] text-muted">
         Implied win probability · <span className="text-market">{fixture.marketLabel}</span>
+        {matchClock && <span className="text-muted-2"> · match clock</span>}
       </p>
       <div className="h-[320px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 24, right: 18, bottom: 6, left: -6 }}>
             <CartesianGrid stroke={C.grid} strokeDasharray="2 4" vertical={false} />
 
+            {/* Watched windows. */}
             {fixture.signals.map((s, i) => {
-              const start = Date.parse(s.provenAt);
+              const start = toX(s.provenAt);
               return (
                 <ReferenceArea
-                  key={i}
+                  key={`w${i}`}
                   x1={start}
-                  x2={start + s.windowMs}
+                  x2={start + windowMin(s.windowMs)}
                   fill={C.signal}
                   fillOpacity={0.1}
                   stroke={C.signal}
                   strokeOpacity={0.4}
                   strokeDasharray="3 3"
                   ifOverflow="extendDomain"
-                  label={{ value: "SIDEFOOT WATCHING", position: "insideTop", fill: C.signal, fontSize: 9, fontFamily: "var(--font-mono)", offset: 8 }}
+                  label={{ value: "WATCHING", position: "insideTop", fill: C.signal, fontSize: 9, fontFamily: "var(--font-mono)", offset: 8 }}
                 />
               );
             })}
 
+            {/* Match markers: KO / HT / FT. */}
+            {matchClock &&
+              [
+                { x: 0, label: "KO" },
+                { x: 45, label: "HT" },
+                { x: 90, label: "FT" },
+              ].map((m) => (
+                <ReferenceLine
+                  key={m.label}
+                  x={m.x}
+                  stroke={C.grid}
+                  strokeWidth={1}
+                  label={{ value: m.label, position: "insideTopRight", fill: C.axis, fontSize: 9, fontFamily: "var(--font-mono)" }}
+                />
+              ))}
+
             <XAxis
               dataKey="x"
               type="number"
-              domain={["dataMin", "dataMax"]}
-              scale="time"
-              tickFormatter={(v) => clockTime(new Date(v).toISOString())}
+              domain={xDomain}
+              {...(xTicks ? { ticks: xTicks } : { scale: "time" as const })}
+              tickFormatter={xFmt}
               stroke={C.axis}
               tick={{ fontSize: 11, fontFamily: "var(--font-mono)" }}
               tickMargin={8}
@@ -134,7 +169,7 @@ export function DivergenceTimeline({
               cursor={{ stroke: C.axis, strokeDasharray: "3 3", strokeOpacity: 0.5 }}
               contentStyle={{ background: "#0B110E", border: "1px solid #1B2620", borderRadius: 10, fontSize: 12, fontFamily: "var(--font-mono)" }}
               labelStyle={{ color: "#7E9188" }}
-              labelFormatter={(v) => clockTime(new Date(v as number).toISOString())}
+              labelFormatter={(v) => tipLabel(v as number)}
               formatter={(value: number) => [`${pct(value, 2)} to win`, fixture.marketLabel]}
             />
 
@@ -150,7 +185,7 @@ export function DivergenceTimeline({
 
             {catchUps.map((c, i) => (
               <ReferenceDot
-                key={i}
+                key={`c${i}`}
                 x={c.x}
                 y={c.y}
                 r={4}

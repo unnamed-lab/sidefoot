@@ -46,6 +46,8 @@ export interface FixtureFeed {
   participant2: string;
   currentScore?: string;
   gamePhase: string;
+  /** Kickoff time (ISO) — enables match-clock axis + never-stale phase. */
+  startTime?: string;
   /** Human label for the tracked odds series, e.g. "Match winner — Home". */
   marketLabel: string;
   odds: OddsPoint[];
@@ -67,7 +69,50 @@ export function explorerTxUrl(feed: Pick<DashboardFeed, "explorerCluster">, sig:
   return `https://explorer.solana.com/tx/${sig}${feed.explorerCluster}`;
 }
 
-export async function loadFeed(): Promise<DashboardFeed> {
+/**
+ * Phase recomputed from kickoff on every render (never stale). Returns a live
+ * match minute during play, else Pre-match / Halftime / Full Time. Falls back to
+ * the stored phase when there's no kickoff time.
+ */
+export function matchPhase(startTime: string | undefined, fallback: string): string {
+  if (!startTime) return fallback;
+  const start = Date.parse(startTime);
+  if (!Number.isFinite(start)) return fallback;
+  const min = (Date.now() - start) / 60_000;
+  if (min < 0) return "Pre-match";
+  if (min >= 150) return "Full Time";
+  if (min <= 45) return `${Math.max(1, Math.ceil(min))}'`;
+  if (min <= 60) return "Halftime";
+  if (min <= 105) return `${Math.ceil(min - 15)}'`; // 2nd half, minus ~15m break
+  return "Full Time";
+}
+
+export function isLivePhase(phase: string): boolean {
+  return phase !== "Pre-match" && phase !== "Full Time";
+}
+
+import { cacheGet, cacheSet, fetchWithTimeout } from "./cache";
+
+const CACHE_KEY = "sidefoot.feed";
+
+/**
+ * Live API first (with a fast timeout) → localStorage cache → static snapshot.
+ * `fixtureId` asks the API to make sure that specific fixture is included.
+ */
+export async function loadFeed(fixtureId?: number | null): Promise<DashboardFeed> {
+  try {
+    const url = fixtureId ? `/api/feed?fixture=${fixtureId}` : "/api/feed";
+    const res = await fetchWithTimeout(url, 9000);
+    if (res.ok) {
+      const data = (await res.json()) as DashboardFeed;
+      cacheSet(CACHE_KEY, data);
+      return data;
+    }
+  } catch {
+    /* timeout / offline — fall through */
+  }
+  const cached = cacheGet<DashboardFeed>(CACHE_KEY);
+  if (cached) return cached;
   const res = await fetch("/feed.json", { cache: "no-store" });
   if (!res.ok) throw new Error(`feed load failed: ${res.status}`);
   return (await res.json()) as DashboardFeed;

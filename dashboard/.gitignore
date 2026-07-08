@@ -4,3 +4,8 @@ out/
 next-env.d.ts
 *.tsbuildinfo
 .vercel
+
+# Local env (TxLINE tokens) — never commit
+.env
+.env.local
+.env*.local

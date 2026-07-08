@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T17:40:04.761Z",
+  "generatedAt": "2026-07-08T15:34:31.514Z",
   "network": "devnet",
   "competitions": [
     {
@@ -43,57 +43,6 @@
       "competitionId": 72,
       "fixtures": [
         {
-          "fixtureId": 18192996,
-          "participant1": "Mexico",
-          "participant2": "England",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-06T01:00:00.000Z",
-          "status": "finished",
-          "trading": false,
-          "score": "2-3"
-        },
-        {
-          "fixtureId": 18198205,
-          "participant1": "Portugal",
-          "participant2": "Spain",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-06T19:00:00.000Z",
-          "status": "scheduled",
-          "trading": false
-        },
-        {
-          "fixtureId": 18193785,
-          "participant1": "USA",
-          "participant2": "Belgium",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-07T00:00:00.000Z",
-          "status": "scheduled",
-          "trading": false
-        },
-        {
-          "fixtureId": 18202701,
-          "participant1": "Argentina",
-          "participant2": "Egypt",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-07T16:00:00.000Z",
-          "status": "scheduled",
-          "trading": false
-        },
-        {
-          "fixtureId": 18202783,
-          "participant1": "Switzerland",
-          "participant2": "Colombia",
-          "competition": "World Cup",
-          "competitionId": 72,
-          "startTime": "2026-07-07T20:00:00.000Z",
-          "status": "scheduled",
-          "trading": false
-        },
-        {
           "fixtureId": 18209181,
           "participant1": "France",
           "participant2": "Morocco",
@@ -104,12 +53,32 @@
           "trading": false
         },
         {
+          "fixtureId": 18218149,
+          "participant1": "Spain",
+          "participant2": "Belgium",
+          "competition": "World Cup",
+          "competitionId": 72,
+          "startTime": "2026-07-10T19:00:00.000Z",
+          "status": "scheduled",
+          "trading": false
+        },
+        {
           "fixtureId": 18213979,
           "participant1": "Norway",
           "participant2": "England",
           "competition": "World Cup",
           "competitionId": 72,
           "startTime": "2026-07-11T21:00:00.000Z",
+          "status": "scheduled",
+          "trading": false
+        },
+        {
+          "fixtureId": 18222446,
+          "participant1": "Argentina",
+          "participant2": "Switzerland",
+          "competition": "World Cup",
+          "competitionId": 72,
+          "startTime": "2026-07-12T01:00:00.000Z",
           "status": "scheduled",
           "trading": false
         }

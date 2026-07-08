@@ -1,8 +1,10 @@
-import type { FixtureFeed } from "../lib/feed";
+import { matchPhase, isLivePhase, type FixtureFeed } from "../lib/feed";
 
 /** Scoreboard-style header: jersey-numeral score, live phase, chart legend. */
 export function ScorePhaseHeader({ fixture }: { fixture: FixtureFeed }) {
   const [h, a] = (fixture.currentScore ?? "–-–").split("-");
+  const phase = matchPhase(fixture.startTime, fixture.gamePhase);
+  const live = isLivePhase(phase);
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-4">
@@ -19,9 +21,13 @@ export function ScorePhaseHeader({ fixture }: { fixture: FixtureFeed }) {
             {fixture.participant2}
           </span>
         </div>
-        <span className="flex items-center gap-1.5 rounded-full border border-line bg-base-2 px-2.5 py-0.5 text-xs text-muted">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-proof" />
-          {fixture.gamePhase}
+        <span
+          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs ${
+            live ? "border-proof/40 bg-proof/10 text-proof" : "border-line bg-base-2 text-muted"
+          }`}
+        >
+          {live && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-proof" />}
+          {phase}
         </span>
       </div>
 

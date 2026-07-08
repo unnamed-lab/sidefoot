@@ -24,7 +24,7 @@ export default function DashboardPage() {
     let active = true;
     const paramId = Number(new URLSearchParams(window.location.search).get("fixture")) || null;
     const load = () =>
-      loadFeed()
+      loadFeed(paramId)
         .then((f) => {
           if (!active) return;
           setFeed(f);

@@ -31,7 +31,24 @@ export interface FixturesBoardData {
   competitions: Competition[];
 }
 
+import { cacheGet, cacheSet, fetchWithTimeout } from "./cache";
+
+const CACHE_KEY = "sidefoot.fixtures";
+
+/** Live API first (with a fast timeout) → localStorage cache → static snapshot. */
 export async function loadFixtures(): Promise<FixturesBoardData> {
+  try {
+    const res = await fetchWithTimeout("/api/fixtures", 9000);
+    if (res.ok) {
+      const data = (await res.json()) as FixturesBoardData;
+      cacheSet(CACHE_KEY, data);
+      return data;
+    }
+  } catch {
+    /* timeout / offline — fall through */
+  }
+  const cached = cacheGet<FixturesBoardData>(CACHE_KEY);
+  if (cached) return cached;
   const res = await fetch("/fixtures.json", { cache: "no-store" });
   if (!res.ok) throw new Error(`fixtures load failed: ${res.status}`);
   return (await res.json()) as FixturesBoardData;
