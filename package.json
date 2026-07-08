@@ -19,6 +19,7 @@
     "alert": "tsx src/alertOne.ts",
     "feed": "tsx src/buildFeed.ts",
     "board": "tsx src/buildFeed.ts --board",
+    "token": "tsx src/printToken.ts",
     "start": "tsx src/runPipeline.ts"
   },
   "dependencies": {

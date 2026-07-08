@@ -46,6 +46,7 @@ interface FeedFixture {
   participant2: string;
   gamePhase: string;
   currentScore?: string;
+  startTime?: string;
   marketLabel: string;
   odds: { t: string; p: number }[];
   proofs: { provenAt: string; statLabel: string; txSignature?: string; latencyMs: number }[];
@@ -221,9 +222,10 @@ async function buildFixture(
   const fixtureId = fx.FixtureId;
   console.log(`[feed] ${fixtureId} — ${fx.Participant1} v ${fx.Participant2}`);
   const { goal, phase, raw, started, score } = await fixtureScores(session, fixtureId);
+  const startTime = normStart(fx.StartTime);
   // Kickoff-time status is reliable; TxLINE GameState isn't. Use an in-play
   // label if we have one, else the status word.
-  const status = classifyStatus(raw, normStart(fx.StartTime), started);
+  const status = classifyStatus(raw, startTime, started);
   const gamePhase =
     status === "live" ? (phase && phase !== "scheduled" ? phase : "Live") : status === "finished" ? "Full Time" : "Pre-match";
 
@@ -295,6 +297,7 @@ async function buildFixture(
     participant2: fx.Participant2,
     gamePhase,
     ...(score ? { currentScore: score } : {}),
+    ...(startTime ? { startTime } : {}),
     marketLabel: picked?.label ?? "Match winner",
     odds,
     proofs,
