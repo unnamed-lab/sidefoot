@@ -35,30 +35,38 @@ export function FootballLoader() {
         {/* Spinning Ball SVG */}
         <svg
           className="relative h-20 w-20 animate-spin text-proof"
-          style={{ animationDuration: "4s" }}
+          style={{ animationDuration: "5s" }}
           viewBox="0 0 100 100"
           fill="none"
           stroke="currentColor"
-          strokeWidth="3.5"
+          strokeWidth="2.5"
         >
           {/* Ball Outer Border */}
-          <circle cx="50" cy="50" r="44" stroke="currentColor" fill="none" />
+          <circle cx="50" cy="50" r="46" stroke="currentColor" fill="none" />
           
-          {/* Inner Pentagonal seams */}
-          <polygon points="50,36 62,45 57,59 43,59 38,45" fill="currentColor" fillOpacity="0.15" />
+          {/* Central Pentagonal Panel (Solid fill) */}
+          <polygon points="50,35 64,45 59,61 41,61 36,45" fill="currentColor" fillOpacity="0.8" />
           
-          <line x1="50" y1="36" x2="50" y2="6" />
-          <line x1="62" y1="45" x2="91" y2="31" />
-          <line x1="57" y1="59" x2="76" y2="89" />
-          <line x1="43" y1="59" x2="24" y2="89" />
-          <line x1="38" y1="45" x2="9" y2="31" />
+          {/* Seams connecting central panel to outer boundary */}
+          <line x1="50" y1="35" x2="50" y2="15" stroke="currentColor" />
+          <line x1="64" y1="45" x2="83" y2="32" stroke="currentColor" />
+          <line x1="59" y1="61" x2="71" y2="80" stroke="currentColor" />
+          <line x1="41" y1="61" x2="29" y2="80" stroke="currentColor" />
+          <line x1="36" y1="45" x2="17" y2="32" stroke="currentColor" />
 
-          {/* Curve Panels */}
-          <path d="M 50 6 A 44 44 0 0 1 91 31" strokeDasharray="3,3" />
-          <path d="M 91 31 A 44 44 0 0 1 76 89" strokeDasharray="3,3" />
-          <path d="M 76 89 A 44 44 0 0 1 24 89" strokeDasharray="3,3" />
-          <path d="M 24 89 A 44 44 0 0 1 9 31" strokeDasharray="3,3" />
-          <path d="M 9 31 A 44 44 0 0 1 50 6" strokeDasharray="3,3" />
+          {/* Outer Pentagonal Panels (Solid fill along the curved edge) */}
+          <polygon points="50,15 57,8 54,4 46,4 43,8" fill="currentColor" fillOpacity="0.8" />
+          <polygon points="83,32 91,28 92,35 86,41 79,37" fill="currentColor" fillOpacity="0.8" />
+          <polygon points="71,80 79,84 76,91 68,91 65,84" fill="currentColor" fillOpacity="0.8" />
+          <polygon points="29,80 35,84 32,91 24,91 21,84" fill="currentColor" fillOpacity="0.8" />
+          <polygon points="17,32 21,37 14,41 8,35 9,28" fill="currentColor" fillOpacity="0.8" />
+
+          {/* Curved panels outer seams */}
+          <path d="M 50 15 C 64 15 75 21 83 32" stroke="currentColor" />
+          <path d="M 83 32 C 87 46 82 68 71 80" stroke="currentColor" />
+          <path d="M 71 80 C 60 88 40 88 29 80" stroke="currentColor" />
+          <path d="M 29 80 C 18 68 13 46 17 32" stroke="currentColor" />
+          <path d="M 17 32 C 25 21 36 15 50 15" stroke="currentColor" />
         </svg>
       </div>
 
