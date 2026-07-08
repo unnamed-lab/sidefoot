@@ -10,6 +10,7 @@ import { explainSignal } from "./reasoning/explain";
 import { createHeraldAlerter } from "./alert/herald";
 import { SidefootPipeline, type PipelineEvent } from "./pipeline";
 import type { LaggingMarketConfig } from "./detector";
+import { createDashboard } from "./tui";
 
 /**
  * Day 7 — the full pipeline, live: ingest odds + scores, prove goals on-chain,
@@ -54,31 +55,53 @@ async function main(): Promise<void> {
   const logPath = join(dir, `signals-${env.network}-${stamp}.jsonl`);
   const logStream = createWriteStream(logPath, { flags: "a" });
 
+  const controller = new AbortController();
+  const dash = createDashboard({
+    network: env.network,
+    logPath,
+    recipient: heraldCfg?.recipientWallet,
+    tracking: env.fixtures.length ? env.fixtures.join(", ") : "ALL fixtures",
+    window: CONFIG.expectedMoveWindowMs,
+    minShift: CONFIG.minProbabilityShift,
+    onQuit: () => controller.abort(),
+  });
+
+  const teamLabel = (id: number): string => {
+    const t = teams.get(id);
+    return t ? `${t.participant1} v ${t.participant2}` : `fx ${id}`;
+  };
+
   const onEvent = (e: PipelineEvent): void => {
     logStream.write(JSON.stringify(e) + "\n");
     switch (e.kind) {
       case "proof":
-        console.log(
-          `[proof] fx=${e.event.fixtureId} stat=${e.event.statKey} verified=${e.result.verified} ` +
-            `predicate=${e.result.predicateResult} latency=${e.result.latencyMs}ms sig=${e.result.signature ?? "-"}`
+        dash.event(
+          "PROOF",
+          `${teamLabel(e.event.fixtureId)} · ${e.event.statKey} · ${e.result.verified ? "✓verified" : "✕unverified"} pred=${e.result.predicateResult} · ${e.result.latencyMs}ms`,
+          e.result.verified ? "proof" : "danger"
         );
         break;
-      case "verdict":
-        console.log(
-          `[verdict] fx=${e.verdict.fixtureId} ${e.verdict.status} ticks=${e.verdict.postTickCount} maxShift=${e.verdict.maxObservedShift.toFixed(4)}`
+      case "verdict": {
+        const hot = e.verdict.status === "LAGGING_MARKET";
+        dash.event(
+          "VERDICT",
+          `${teamLabel(e.verdict.fixtureId)} · ${e.verdict.status} · ticks=${e.verdict.postTickCount} maxShift=${e.verdict.maxObservedShift.toFixed(4)}`,
+          hot ? "signal" : "muted"
         );
         break;
+      }
       case "signal":
-        console.log(`[signal] fx=${e.signal.fixtureId} (${e.explanation.confidence}) ${e.explanation.explanation}`);
+        dash.event("SIGNAL", `${teamLabel(e.signal.fixtureId)} · (${e.explanation.confidence}) ${e.explanation.explanation}`, "signal");
         break;
       case "alert":
-        console.log(
-          `[alert] fx=${e.signal.fixtureId} → ${e.result.status} channel=${e.result.deliveryChannel ?? "?"} ` +
-            `registered=${e.result.recipientRegistered} id=${e.result.notificationId}`
+        dash.event(
+          "ALERT",
+          `${teamLabel(e.signal.fixtureId)} → ${e.result.status} · ${e.result.deliveryChannel ?? "?"} · registered=${e.result.recipientRegistered}`,
+          e.result.status === "failed" ? "warn" : "proof"
         );
         break;
       case "error":
-        console.warn(`[error] stage=${e.stage}:`, (e.error as Error)?.message ?? e.error);
+        dash.event("ERROR", `${e.stage}: ${(e.error as Error)?.message ?? e.error}`, "danger");
         break;
     }
   };
@@ -92,25 +115,14 @@ async function main(): Promise<void> {
     onEvent,
   });
 
-  if (heraldCfg) {
-    console.log(
-      `[pipeline] live on ${env.network}; alerts → Herald wallet ${heraldCfg.recipientWallet} (Telegram preferred)`
-    );
-  } else {
-    console.log(
-      `[pipeline] live on ${env.network}; Herald alerts not configured (notifications disabled)`
-    );
-  }
-  console.log(`[pipeline] observability log: ${logPath}`);
-  console.log(
-    `[pipeline] tracking ${env.fixtures.length ? env.fixtures.join(", ") : "ALL fixtures"}; window=${CONFIG.expectedMoveWindowMs}ms minShift=${CONFIG.minProbabilityShift}`
+  dash.note(
+    heraldCfg
+      ? `live on ${env.network} · alerts → Herald ${heraldCfg.recipientWallet} (Telegram)`
+      : `live on ${env.network} · Herald alerts not configured`
   );
+  dash.note(`tracking ${env.fixtures.length ? env.fixtures.join(", ") : "ALL fixtures"} · window=${CONFIG.expectedMoveWindowMs}ms minShift=${CONFIG.minProbabilityShift}`);
 
-  const controller = new AbortController();
-  const stop = (sig: string) => {
-    console.log(`\n[pipeline] ${sig} — stopping…`);
-    controller.abort();
-  };
+  const stop = (sig: string) => dash.stop(sig);
   process.once("SIGINT", () => stop("SIGINT"));
   process.once("SIGTERM", () => stop("SIGTERM"));
 
@@ -119,17 +131,24 @@ async function main(): Promise<void> {
       fixtures: env.fixtures,
       signal: controller.signal,
       handlers: {
-        onOddsTick: pipeline.onOddsTick,
-        onScoreEvent: pipeline.onScoreEvent,
-        onConnect: (feed, fixtureId) =>
-          console.log(`[pipeline] connected ${feed}${fixtureId ? ` fixture=${fixtureId}` : ""}`),
-        onError: (feed, err) =>
-          console.warn(`[pipeline] ${feed} stream error (reconnecting):`, (err as Error)?.message ?? err),
+        onOddsTick: (tick) => {
+          dash.tick("odds");
+          pipeline.onOddsTick(tick);
+        },
+        onScoreEvent: (event) => {
+          dash.tick("scores");
+          pipeline.onScoreEvent(event);
+        },
+        onConnect: (feed) => dash.setStream(feed as "odds" | "scores", true),
+        onError: (feed, err) => {
+          dash.setStream(feed as "odds" | "scores", false);
+          dash.event("ERROR", `${feed} stream error (reconnecting): ${(err as Error)?.message ?? err}`, "warn");
+        },
       },
     });
   } finally {
     await new Promise<void>((res) => logStream.end(() => res()));
-    console.log(`[pipeline] stopped. Log → ${logPath}`);
+    dash.stop();
   }
 }
 
