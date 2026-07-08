@@ -102,10 +102,13 @@ function parsePriority(v: string | undefined): HeraldConfig["priority"] {
   return "important"; // signals are time-sensitive by nature
 }
 
-export function loadHeraldConfig(): HeraldConfig {
+export function loadHeraldConfig(): HeraldConfig | null {
+  const apiKey = process.env.HERALD_API_KEY;
+  const recipientWallet = process.env.HERALD_RECIPIENT_WALLET;
+  if (!apiKey || !recipientWallet) return null;
   return {
-    apiKey: required("HERALD_API_KEY"),
-    recipientWallet: required("HERALD_RECIPIENT_WALLET"),
+    apiKey,
+    recipientWallet,
     // Default off: alerts can be frequent and receipts hit mainnet + quota.
     receipt: process.env.HERALD_RECEIPT === "true",
     priority: parsePriority(process.env.HERALD_PRIORITY),
@@ -113,3 +116,4 @@ export function loadHeraldConfig(): HeraldConfig {
     baseUrl: process.env.HERALD_BASE_URL || undefined,
   };
 }
+

@@ -13,3 +13,6 @@ dist/
 data/*.jsonl
 data/**/*.jsonl
 !data/.gitkeep
+
+# vitest transient config timestamp files
+*.timestamp-*.mjs

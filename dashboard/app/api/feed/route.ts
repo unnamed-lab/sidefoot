@@ -6,6 +6,7 @@ import type { DashboardFeed } from "../../../lib/feed";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 20; // safeguard for slower cold starts (Pro; Hobby caps at 10)
 
 export async function GET(req: NextRequest) {
   if (!credentialsConfigured()) {

@@ -2,47 +2,73 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { loadFeed, type DashboardFeed } from "../../lib/feed";
 import { clockTime } from "../../lib/format";
 import { Wordmark } from "../../components/Wordmark";
 import { FixtureSelector } from "../../components/FixtureSelector";
 import { ScorePhaseHeader } from "../../components/ScorePhaseHeader";
 import { DivergenceTimeline } from "../../components/DivergenceTimeline";
+import { FootballLoader } from "../../components/FootballLoader";
 import { SignalFeed } from "../../components/SignalFeed";
 
 const REFRESH_MS = 90_000;
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [feed, setFeed] = useState<DashboardFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number>(Date.now());
 
-  // Poll feed.json every ~90s so the board reflects fresh captures without a
-  // manual reload (the useQuery refetch-interval pattern, no extra dependency).
+  // Function to load the feed based on current URL query param or optional ID override
+  const load = (overrideId?: number | null) => {
+    const paramId = overrideId !== undefined ? overrideId : (Number(new URLSearchParams(window.location.search).get("fixture")) || null);
+    return loadFeed(paramId)
+      .then((f) => {
+        setFeed(f);
+        setUpdatedAt(Date.now());
+        setError(null);
+        setSelectedId((prev) => {
+          const desired = overrideId ?? prev ?? paramId;
+          return desired && f.fixtures.some((x) => x.fixtureId === desired) ? desired : f.fixtures[0]?.fixtureId ?? null;
+        });
+      })
+      .catch((e) => setError(String(e?.message ?? e)));
+  };
+
   useEffect(() => {
     let active = true;
-    const paramId = Number(new URLSearchParams(window.location.search).get("fixture")) || null;
-    const load = () =>
-      loadFeed(paramId)
-        .then((f) => {
-          if (!active) return;
-          setFeed(f);
-          setUpdatedAt(Date.now());
-          setError(null);
-          setSelectedId((prev) => {
-            const desired = prev ?? paramId;
-            return desired && f.fixtures.some((x) => x.fixtureId === desired) ? desired : f.fixtures[0]?.fixtureId ?? null;
-          });
-        })
-        .catch((e) => active && setError(String(e?.message ?? e)));
-    load();
-    const id = setInterval(load, REFRESH_MS);
+    const runLoad = () => {
+      if (!active) return;
+      load();
+    };
+    runLoad();
+    const intervalId = setInterval(runLoad, REFRESH_MS);
+
+    const handlePopState = () => {
+      if (!active) return;
+      const paramId = Number(new URLSearchParams(window.location.search).get("fixture")) || null;
+      if (paramId) {
+        setSelectedId(paramId);
+        load(paramId);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+
     return () => {
       active = false;
-      clearInterval(id);
+      clearInterval(intervalId);
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
+
+  const handleSelect = (id: number) => {
+    setSelectedId(id);
+    router.push(`${pathname}?fixture=${id}`);
+    load(id);
+  };
 
   const fixture = useMemo(
     () => feed?.fixtures.find((f) => f.fixtureId === selectedId) ?? feed?.fixtures[0],
@@ -92,7 +118,7 @@ export default function DashboardPage() {
         {feed && fixture && (
           <>
             <div className="mb-4">
-              <FixtureSelector fixtures={feed.fixtures} selectedId={fixture.fixtureId} onSelect={setSelectedId} />
+              <FixtureSelector fixtures={feed.fixtures} selectedId={fixture.fixtureId} onSelect={handleSelect} />
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -123,10 +149,7 @@ export default function DashboardPage() {
         )}
 
         {!feed && !error && (
-          <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-            <div className="h-[420px] animate-pulse rounded-2xl border border-line bg-panel/50" />
-            <div className="h-[420px] animate-pulse rounded-2xl border border-line bg-panel/50" />
-          </div>
+          <FootballLoader />
         )}
       </main>
     </div>

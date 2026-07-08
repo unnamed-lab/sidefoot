@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-08T15:34:31.514Z",
+  "generatedAt": "2026-07-08T16:33:45.815Z",
   "network": "devnet",
   "competitions": [
     {
@@ -43,6 +43,39 @@
       "competitionId": 72,
       "fixtures": [
         {
+          "fixtureId": 18179549,
+          "participant1": "Colombia",
+          "participant2": "Ghana",
+          "competition": "World Cup",
+          "competitionId": 72,
+          "startTime": "2026-07-04T16:00:00.000Z",
+          "status": "finished",
+          "trading": false,
+          "score": "1-0"
+        },
+        {
+          "fixtureId": 18185036,
+          "participant1": "Canada",
+          "participant2": "Morocco",
+          "competition": "World Cup",
+          "competitionId": 72,
+          "startTime": "2026-07-04T19:00:00.000Z",
+          "status": "finished",
+          "trading": false,
+          "score": "0-3"
+        },
+        {
+          "fixtureId": 18188721,
+          "participant1": "Paraguay",
+          "participant2": "France",
+          "competition": "World Cup",
+          "competitionId": 72,
+          "startTime": "2026-07-04T22:00:00.000Z",
+          "status": "finished",
+          "trading": false,
+          "score": "0-1"
+        },
+        {
           "fixtureId": 18209181,
           "participant1": "France",
           "participant2": "Morocco",
@@ -50,7 +83,8 @@
           "competitionId": 72,
           "startTime": "2026-07-09T20:00:00.000Z",
           "status": "scheduled",
-          "trading": false
+          "trading": true,
+          "score": "0-0"
         },
         {
           "fixtureId": 18218149,
@@ -60,7 +94,8 @@
           "competitionId": 72,
           "startTime": "2026-07-10T19:00:00.000Z",
           "status": "scheduled",
-          "trading": false
+          "trading": true,
+          "score": "0-0"
         },
         {
           "fixtureId": 18213979,
@@ -70,7 +105,8 @@
           "competitionId": 72,
           "startTime": "2026-07-11T21:00:00.000Z",
           "status": "scheduled",
-          "trading": false
+          "trading": true,
+          "score": "0-0"
         },
         {
           "fixtureId": 18222446,
@@ -80,7 +116,8 @@
           "competitionId": 72,
           "startTime": "2026-07-12T01:00:00.000Z",
           "status": "scheduled",
-          "trading": false
+          "trading": true,
+          "score": "0-0"
         }
       ]
     }

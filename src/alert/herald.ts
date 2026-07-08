@@ -53,7 +53,23 @@ function idempotencyKey(signal: DivergenceSignal): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }
 
-export function createHeraldAlerter(cfg: HeraldConfig, network: NetworkConfig): Alerter {
+export function createHeraldAlerter(cfg: HeraldConfig | null, network: NetworkConfig): Alerter {
+  if (!cfg) {
+    return {
+      async send(signal, explanation, context): Promise<AlertResult> {
+        return {
+          notificationId: "disabled",
+          status: "skipped",
+          deliveryChannel: null,
+          recipientRegistered: false,
+        };
+      },
+      async status(notificationId): Promise<DeliveryStatus> {
+        return { status: "skipped", deliveredAt: null, deliveryChannel: null };
+      },
+    };
+  }
+
   const herald = new Herald({
     apiKey: cfg.apiKey,
     ...(cfg.baseUrl ? { baseUrl: cfg.baseUrl } : {}),

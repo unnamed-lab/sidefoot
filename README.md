@@ -7,9 +7,14 @@ hasn't caught up to something that's already been proven true on-chain.
 Every signal it raises is backed by a real on-chain `validate_stat` call a judge
 can independently verify against Solana Explorer — a proof, not a claim.
 
-> **Status:** ingestion worker + replay recorder (Day 3), pure divergence
-> detector (Day 4), the on-chain prover (Day 5), and the reasoning layer (Day 6)
-> are built and verified. Alerts (Day 7) and dashboard (Day 8+) follow.
+> **Live:** [sidefoot.vercel.app](https://sidefoot.vercel.app) · live API:
+> [`/api/fixtures`](https://sidefoot.vercel.app/api/fixtures) ·
+> [`/api/feed`](https://sidefoot.vercel.app/api/feed) · submission notes in
+> [SUBMISSION.md](SUBMISSION.md).
+>
+> **Status:** full pipeline (ingest → prove → detect → explain → alert),
+> deterministic tested detector, live TxLINE dashboard + serverless API, all
+> built and deployed.
 >
 > **Verified proof (devnet):** a real `validate_stat` proof for a goal (fixture
 > 18179759, P1 goals = 2) landed on-chain and resolves on Solana Explorer —

@@ -81,8 +81,12 @@ export function DivergenceTimeline({ fixture, explorerCluster }: { fixture: Fixt
     .filter((v): v is { x: number; y: number } => v !== null);
 
   const ps = data.map((d) => d.p);
-  const lo = Math.max(0, Math.min(...ps) - 0.04);
-  const hi = Math.min(1, Math.max(...ps) + 0.05);
+  const rawMin = Math.min(...ps);
+  const rawMax = Math.max(...ps);
+  // Round min down to nearest 5% and max up to nearest 5% for clean axis ticks
+  const lo = Math.max(0, Math.floor((rawMin - 0.02) * 20) / 20);
+  const hi = Math.min(1, Math.ceil((rawMax + 0.02) * 20) / 20);
+
 
   // Axis config: match-clock (minutes) vs wall-clock (fallback).
   let xDomain: [number | string, number | string] = ["dataMin", "dataMax"];
@@ -155,6 +159,7 @@ export function DivergenceTimeline({ fixture, explorerCluster }: { fixture: Fixt
               tickMargin={8}
               axisLine={{ stroke: C.grid }}
               tickLine={false}
+              minTickGap={50}
             />
             <YAxis
               domain={[lo, hi]}

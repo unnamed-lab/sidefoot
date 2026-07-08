@@ -92,9 +92,15 @@ async function main(): Promise<void> {
     onEvent,
   });
 
-  console.log(
-    `[pipeline] live on ${env.network}; alerts → Herald wallet ${heraldCfg.recipientWallet} (Telegram preferred)`
-  );
+  if (heraldCfg) {
+    console.log(
+      `[pipeline] live on ${env.network}; alerts → Herald wallet ${heraldCfg.recipientWallet} (Telegram preferred)`
+    );
+  } else {
+    console.log(
+      `[pipeline] live on ${env.network}; Herald alerts not configured (notifications disabled)`
+    );
+  }
   console.log(`[pipeline] observability log: ${logPath}`);
   console.log(
     `[pipeline] tracking ${env.fixtures.length ? env.fixtures.join(", ") : "ALL fixtures"}; window=${CONFIG.expectedMoveWindowMs}ms minShift=${CONFIG.minProbabilityShift}`

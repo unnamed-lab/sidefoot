@@ -48,6 +48,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function main(): Promise<void> {
   const env = loadEnv();
   const heraldCfg = loadHeraldConfig();
+  if (!heraldCfg) {
+    console.error("[alert] Herald alerts are not configured. Please set HERALD_API_KEY and HERALD_RECIPIENT_WALLET in your .env file.");
+    process.exit(1);
+  }
   const alerter = createHeraldAlerter(heraldCfg, networkConfig(env.network));
 
   // Fresh proof timestamp each run → fresh idempotency key → a real new send

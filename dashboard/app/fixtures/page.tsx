@@ -66,7 +66,7 @@ export default function FixturesPage() {
           </div>
         )}
 
-        {data && <FixturesBoard data={data} />}
+        {data && <FixturesBoard data={data} capturedIds={captured} />}
 
         {!data && !error && (
           <div className="grid gap-2 sm:grid-cols-2">

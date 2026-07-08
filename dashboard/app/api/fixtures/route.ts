@@ -6,6 +6,7 @@ import { buildBoard, credentialsConfigured } from "../../../lib/txline-server";
 // Node runtime (fetch + fs), never cached — always a fresh TxLINE read.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 20; // safeguard for slower cold starts (Pro; Hobby caps at 10)
 
 export async function GET() {
   if (!credentialsConfigured()) {
