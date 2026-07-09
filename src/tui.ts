@@ -41,7 +41,7 @@ const TONE: Record<Tone, { c: (s: string) => string; cb: (s: string) => string }
 };
 const GLYPH: Record<string, string> = {
   PROOF: "✓", VERDICT: "▲", SIGNAL: "◆", ALERT: "→",
-  ERROR: "✕", LINK: "●", INFO: "·", START: "»",
+  ERROR: "✕", LINK: "●", INFO: "·", START: "»", PENDING: "◷",
 };
 
 // ── ANSI-aware layout helpers (segments carry their own colour + reset) ──────
@@ -67,11 +67,11 @@ function renderSegs(segs: Seg[], maxW: number): { str: string; len: number } {
 }
 
 export type FeedEntry = { time: string; label: string; text: string; tone: Tone; count?: number };
-type Activity = { label: string; odds: number; scores: number; last: number };
+type Activity = { label: string; odds: number; scores: number; last: number; kickoff?: number };
 
 export interface Dashboard {
   readonly isTTY: boolean;
-  tick(stream: "odds" | "scores", fixtureId?: number, label?: string): void;
+  tick(stream: "odds" | "scores", fixtureId?: number, label?: string, startTime?: string): void;
   setStream(stream: "odds" | "scores", up: boolean): void;
   event(label: string, text: string, tone: Tone): void;
   note(text: string): void;
@@ -174,10 +174,14 @@ export function createDashboard(init: DashboardInit): Dashboard {
       ])
     );
     lines.push(mid);
-    // Live markets — fixtures with recent odds/score activity (proves the match
-    // is tracked even before any goal is proven).
+    // Live markets — only fixtures that are actually IN-PLAY right now, not
+    // tomorrow's pre-match odds. In-play = within [kickoff, kickoff+150min]; if
+    // the kickoff is unknown, fall back to "has live score stats" as the signal.
+    const MATCH_MS = 150 * 60_000;
+    const isLive = (a: Activity): boolean =>
+      a.kickoff != null ? now >= a.kickoff && now < a.kickoff + MATCH_MS : a.scores > 0;
     const live = [...state.activity.values()]
-      .filter((a) => now - a.last < 120_000)
+      .filter((a) => now - a.last < 120_000 && isLive(a))
       .sort((a, b) => b.last - a.last)
       .slice(0, 4);
     lines.push(rowLR([seg("LIVE MARKETS", inkB)], [seg(`${live.length} active`, dim)]));
@@ -285,12 +289,16 @@ export function createDashboard(init: DashboardInit): Dashboard {
 
   const dash: Dashboard = {
     isTTY: true,
-    tick(stream, fixtureId, label) {
+    tick(stream, fixtureId, label, startTime) {
       state.counters[stream]++;
       state.lastTick[stream] = Date.now();
       if (fixtureId != null) {
         const a = state.activity.get(fixtureId) ?? { label: label ?? `fx ${fixtureId}`, odds: 0, scores: 0, last: 0 };
         if (label) a.label = label;
+        if (startTime) {
+          const k = Date.parse(startTime);
+          if (Number.isFinite(k)) a.kickoff = k;
+        }
         if (stream === "odds") a.odds++;
         else a.scores++;
         a.last = Date.now();
