@@ -132,11 +132,11 @@ async function main(): Promise<void> {
       signal: controller.signal,
       handlers: {
         onOddsTick: (tick) => {
-          dash.tick("odds");
+          dash.tick("odds", tick.fixtureId, teamLabel(tick.fixtureId));
           pipeline.onOddsTick(tick);
         },
         onScoreEvent: (event) => {
-          dash.tick("scores");
+          dash.tick("scores", event.fixtureId, teamLabel(event.fixtureId));
           pipeline.onScoreEvent(event);
         },
         onConnect: (feed) => dash.setStream(feed as "odds" | "scores", true),

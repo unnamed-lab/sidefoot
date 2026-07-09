@@ -66,11 +66,12 @@ function renderSegs(segs: Seg[], maxW: number): { str: string; len: number } {
   return { str: out, len };
 }
 
-export type FeedEntry = { time: string; label: string; text: string; tone: Tone };
+export type FeedEntry = { time: string; label: string; text: string; tone: Tone; count?: number };
+type Activity = { label: string; odds: number; scores: number; last: number };
 
 export interface Dashboard {
   readonly isTTY: boolean;
-  tick(stream: "odds" | "scores"): void;
+  tick(stream: "odds" | "scores", fixtureId?: number, label?: string): void;
   setStream(stream: "odds" | "scores", up: boolean): void;
   event(label: string, text: string, tone: Tone): void;
   note(text: string): void;
@@ -94,6 +95,9 @@ export function createDashboard(init: DashboardInit): Dashboard {
   const state = {
     counters: { odds: 0, scores: 0, proof: 0, verdict: 0, signal: 0, alert: 0, error: 0 },
     streams: { odds: false, scores: false },
+    lastTick: { odds: 0, scores: 0 },
+    lastErr: { odds: 0, scores: 0 },
+    activity: new Map<number, Activity>(),
     feed: [] as FeedEntry[],
     started: Date.now(),
     follow: true,
@@ -102,6 +106,11 @@ export function createDashboard(init: DashboardInit): Dashboard {
 
   const write = (s: string) => process.stdout.write(s);
   const clock = () => new Date().toTimeString().slice(0, 8);
+  const ago = (t: number): string => {
+    if (!t) return "—";
+    const s = Math.floor((Date.now() - t) / 1000);
+    return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`;
+  };
   const uptime = () => {
     const s = Math.floor((Date.now() - state.started) / 1000);
     const p = (n: number) => String(n).padStart(2, "0");
@@ -126,7 +135,13 @@ export function createDashboard(init: DashboardInit): Dashboard {
       return B("│") + " " + l.str + " ".repeat(Math.max(1, gap)) + r.str + " " + B("│");
     };
 
-    const dot = (up: boolean): Seg => (up ? seg("●", proof) : seg("○", danger));
+    const now = Date.now();
+    // Health-aware: green when data is fresh, red on a recent error, amber if idle.
+    const streamDot = (s: "odds" | "scores"): Seg => {
+      if (state.lastTick[s] && now - state.lastTick[s] < 8000) return seg("●", proof);
+      if (state.lastErr[s] && now - state.lastErr[s] < 20000) return seg("●", danger);
+      return seg("●", warn);
+    };
     const lines: string[] = [];
     lines.push(top);
     // Title bar
@@ -140,7 +155,7 @@ export function createDashboard(init: DashboardInit): Dashboard {
     // Streams + uptime + clock
     lines.push(
       rowLR(
-        [seg("odds ", muted), dot(state.streams.odds), seg("   scores ", muted), dot(state.streams.scores)],
+        [seg("odds ", muted), streamDot("odds"), seg("   scores ", muted), streamDot("scores")],
         [seg("uptime ", dim), seg(uptime() + "  ", ink), seg(clock(), muted)]
       )
     );
@@ -159,6 +174,29 @@ export function createDashboard(init: DashboardInit): Dashboard {
       ])
     );
     lines.push(mid);
+    // Live markets — fixtures with recent odds/score activity (proves the match
+    // is tracked even before any goal is proven).
+    const live = [...state.activity.values()]
+      .filter((a) => now - a.last < 120_000)
+      .sort((a, b) => b.last - a.last)
+      .slice(0, 4);
+    lines.push(rowLR([seg("LIVE MARKETS", inkB)], [seg(`${live.length} active`, dim)]));
+    if (live.length === 0) {
+      lines.push(row([seg("waiting for live odds/scores…", dim)]));
+    } else {
+      for (const a of live) {
+        const fresh = now - a.last < 8000;
+        lines.push(
+          row([
+            seg((fresh ? "● " : "○ "), fresh ? proof : dim),
+            seg(a.label.padEnd(26), inkB),
+            seg(`${a.odds.toLocaleString()} odds · ${a.scores.toLocaleString()} sc`, muted),
+            seg(`   updated ${ago(a.last)}`, dim),
+          ])
+        );
+      }
+    }
+    lines.push(mid);
     // Feed header
     lines.push(
       rowLR(
@@ -166,9 +204,9 @@ export function createDashboard(init: DashboardInit): Dashboard {
         state.follow ? [seg("▸ following", dim)] : [seg("‖ frozen", warn)]
       )
     );
-    // Feed rows — sized to the terminal height
+    // Feed rows — sized to the terminal height (minus the live-markets block).
     const rows = process.stdout.rows ?? 24;
-    const feedRows = Math.max(5, rows - 13);
+    const feedRows = Math.max(4, rows - 15 - Math.max(1, live.length));
     const slice = state.feed.slice(-feedRows);
     for (const e of slice) {
       const t = TONE[e.tone];
@@ -179,6 +217,7 @@ export function createDashboard(init: DashboardInit): Dashboard {
           seg((GLYPH[e.label] ?? "·") + " ", t.c),
           seg(e.label.padEnd(8), t.cb),
           seg(e.text, e.tone === "danger" ? danger : ink),
+          seg(e.count && e.count > 1 ? `  ×${e.count}` : "", warn),
         ])
       );
     }
@@ -232,17 +271,35 @@ export function createDashboard(init: DashboardInit): Dashboard {
   renderNow();
 
   const push = (label: string, text: string, tone: Tone) => {
-    if (state.follow) state.feed.push({ time: clock(), label, text, tone });
+    if (!state.follow) return;
+    // Collapse a burst of the identical line (e.g. reconnect spam) into one ×N.
+    const prev = state.feed[state.feed.length - 1];
+    if (prev && prev.label === label && prev.text === text) {
+      prev.count = (prev.count ?? 1) + 1;
+      prev.time = clock();
+      return;
+    }
+    state.feed.push({ time: clock(), label, text, tone });
     if (state.feed.length > 500) state.feed = state.feed.slice(-500);
   };
 
   const dash: Dashboard = {
     isTTY: true,
-    tick(stream) {
+    tick(stream, fixtureId, label) {
       state.counters[stream]++;
+      state.lastTick[stream] = Date.now();
+      if (fixtureId != null) {
+        const a = state.activity.get(fixtureId) ?? { label: label ?? `fx ${fixtureId}`, odds: 0, scores: 0, last: 0 };
+        if (label) a.label = label;
+        if (stream === "odds") a.odds++;
+        else a.scores++;
+        a.last = Date.now();
+        state.activity.set(fixtureId, a);
+      }
     },
     setStream(stream, up) {
       state.streams[stream] = up;
+      if (!up) state.lastErr[stream] = Date.now();
       renderNow();
     },
     event(label, text, tone) {
