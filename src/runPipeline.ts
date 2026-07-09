@@ -38,11 +38,16 @@ async function main(): Promise<void> {
   const reasoningPort = createAnthropicPort(reasoningCfg);
   const alerter = createHeraldAlerter(heraldCfg, session.cfg);
 
-  // Team names for readable alerts, from a one-shot fixtures snapshot.
-  const teams = new Map<number, { participant1: string; participant2: string }>();
+  // Team names + kickoff for readable alerts and the live-markets filter.
+  const teams = new Map<number, { participant1: string; participant2: string; startTime?: string }>();
   try {
     for (const f of await getFixturesSnapshot(session.client)) {
-      teams.set(f.FixtureId, { participant1: f.Participant1, participant2: f.Participant2 });
+      // StartTime is epoch seconds (or ms); normalise to ISO for the TUI filter.
+      const startTime =
+        Number.isFinite(f.StartTime) && f.StartTime > 0
+          ? new Date(f.StartTime < 1e12 ? f.StartTime * 1000 : f.StartTime).toISOString()
+          : undefined;
+      teams.set(f.FixtureId, { participant1: f.Participant1, participant2: f.Participant2, startTime });
     }
   } catch {
     /* non-fatal — alerts fall back to "Fixture <id> P1/P2" labels */
@@ -81,6 +86,15 @@ async function main(): Promise<void> {
           e.result.verified ? "proof" : "danger"
         );
         break;
+      case "pending": {
+        const why = e.reason === "not-published" ? "validation not published yet" : "network";
+        dash.event(
+          "PENDING",
+          `${teamLabel(e.event.fixtureId)} · goal · proof pending (${why}) · retry ${Math.round(e.nextRetryMs / 1000)}s`,
+          "warn"
+        );
+        break;
+      }
       case "verdict": {
         const hot = e.verdict.status === "LAGGING_MARKET";
         dash.event(
@@ -132,11 +146,11 @@ async function main(): Promise<void> {
       signal: controller.signal,
       handlers: {
         onOddsTick: (tick) => {
-          dash.tick("odds", tick.fixtureId, teamLabel(tick.fixtureId));
+          dash.tick("odds", tick.fixtureId, teamLabel(tick.fixtureId), teams.get(tick.fixtureId)?.startTime);
           pipeline.onOddsTick(tick);
         },
         onScoreEvent: (event) => {
-          dash.tick("scores", event.fixtureId, teamLabel(event.fixtureId));
+          dash.tick("scores", event.fixtureId, teamLabel(event.fixtureId), teams.get(event.fixtureId)?.startTime);
           pipeline.onScoreEvent(event);
         },
         onConnect: (feed) => dash.setStream(feed as "odds" | "scores", true),

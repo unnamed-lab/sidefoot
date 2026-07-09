@@ -11,7 +11,7 @@ import {
   type LaggingMarketConfig,
   type LaggingMarketVerdict,
 } from "./detector";
-import { isProofWorthy, type ProofResult } from "./prover";
+import { isProofWorthy, classifyProofError, type ProofResult, type ProofErrorReason } from "./prover";
 import { gamePhaseLabel, statKeyLabel } from "./gamePhase";
 import type { AlertResult } from "./alert/herald";
 
@@ -47,6 +47,7 @@ const realScheduler: Scheduler = {
 /** Observability records — every meaningful step, confirmed or not (plan §6). */
 export type PipelineEvent =
   | { kind: "proof"; at: string; event: ScoreEvent; result: ProofResult }
+  | { kind: "pending"; at: string; event: ScoreEvent; reason: ProofErrorReason; attempts: number; nextRetryMs: number }
   | { kind: "verdict"; at: string; verdict: LaggingMarketVerdict }
   | { kind: "signal"; at: string; signal: DivergenceSignal; explanation: SignalExplanation }
   | { kind: "alert"; at: string; signal: DivergenceSignal; result: AlertResult }
@@ -66,6 +67,18 @@ export interface PipelineDeps {
   /** Resolve fixture team names for context; undefined ⇒ fallback labels. */
   resolveTeams?(fixtureId: number): { participant1: string; participant2: string } | undefined;
   config: LaggingMarketConfig;
+  /**
+   * Proof retry policy. A goal's Merkle validation is published in batches, so a
+   * fresh goal 404s until its batch lands — we retry (not error) until then.
+   */
+  proofRetry?: {
+    /** Give up after this many attempts per goal (default 40). */
+    maxAttempts?: number;
+    /** Backoff after a 404 "not published yet" (default 30_000ms). */
+    pendingBackoffMs?: number;
+    /** Backoff after a transient network error (default 10_000ms). */
+    networkBackoffMs?: number;
+  };
   /** Observability sink — receives every step. Default: no-op. */
   onEvent?(event: PipelineEvent): void;
   scheduler?: Scheduler;
@@ -75,16 +88,27 @@ export interface PipelineDeps {
   evalBufferMs?: number;
 }
 
-const provedKey = (e: { fixtureId: number; seq: number; statKey: number }): string =>
-  `${e.fixtureId}:${e.seq}:${e.statKey}`;
+// Dedup by the goal's IDENTITY, not the score `seq` (which increments on every
+// stat update). The same goal (fixture, stat, count) is one proof, retried —
+// keying on `seq` would treat each update as a brand-new goal and hammer prove.
+const goalKey = (e: { fixtureId: number; statKey: number; value: number }): string =>
+  `${e.fixtureId}:${e.statKey}:${e.value}`;
 
 const alertKey = (s: DivergenceSignal): string =>
   `${s.fixtureId}:${s.statKey}:${s.evidence.provenAt}`;
 
+type ProofPhase = "inflight" | "pending" | "proven" | "failed";
+interface ProofState {
+  phase: ProofPhase;
+  attempts: number;
+  /** Earliest wall-clock ms at which the next retry may run. */
+  nextAt: number;
+}
+
 export class SidefootPipeline {
   private readonly oddsBuffer = new Map<number, OddsTick[]>();
   private readonly lastEvent = new Map<number, ScoreEvent>();
-  private readonly proven = new Set<string>();
+  private readonly proofState = new Map<string, ProofState>();
   private readonly alerted = new Set<string>();
 
   private readonly scheduler: Scheduler;
@@ -112,17 +136,41 @@ export class SidefootPipeline {
     this.lastEvent.set(event.fixtureId, event);
     if (!isProofWorthy(event)) return;
 
-    const key = provedKey(event);
-    if (this.proven.has(key)) return; // dedup: prove each (fixture,seq,stat) once
-    this.proven.add(key);
+    const key = goalKey(event);
+    const st = this.proofState.get(key);
+    // Already settled or a proof is in flight → nothing to do.
+    if (st && (st.phase === "proven" || st.phase === "failed" || st.phase === "inflight")) return;
+    // Pending a retry: honour the backoff (the score stream fires far faster than
+    // the validation batch publishes, so we don't attempt on every tick).
+    if (st && Date.now() < st.nextAt) return;
+
+    await this.attemptProof(key, event, st?.attempts ?? 0);
+  };
+
+  /** One proof attempt. On a retryable failure, schedules the next via backoff. */
+  private async attemptProof(key: string, event: ScoreEvent, priorAttempts: number): Promise<void> {
+    const attempts = priorAttempts + 1;
+    this.proofState.set(key, { phase: "inflight", attempts, nextAt: 0 });
 
     let result: ProofResult;
     try {
       result = await this.deps.prove(event);
     } catch (err) {
-      this.emit({ kind: "error", at: nowIso(), stage: "prove", error: err });
+      const { retryable, reason } = classifyProofError(err);
+      const rc = this.deps.proofRetry ?? {};
+      const maxAttempts = rc.maxAttempts ?? 40;
+      if (retryable && attempts < maxAttempts) {
+        const backoff = reason === "network" ? rc.networkBackoffMs ?? 10_000 : rc.pendingBackoffMs ?? 30_000;
+        this.proofState.set(key, { phase: "pending", attempts, nextAt: Date.now() + backoff });
+        this.emit({ kind: "pending", at: nowIso(), event, reason, attempts, nextRetryMs: backoff });
+      } else {
+        this.proofState.set(key, { phase: "failed", attempts, nextAt: Number.POSITIVE_INFINITY });
+        this.emit({ kind: "error", at: nowIso(), stage: "prove", error: err });
+      }
       return;
     }
+
+    this.proofState.set(key, { phase: "proven", attempts, nextAt: Number.POSITIVE_INFINITY });
     this.emit({ kind: "proof", at: nowIso(), event, result });
 
     // A confirmed-authentic proof whose predicate held gives a VerifiedSignal.
@@ -134,7 +182,7 @@ export class SidefootPipeline {
       () => this.evaluate(proven),
       this.deps.config.expectedMoveWindowMs + this.evalBufferMs
     );
-  };
+  }
 
   private async evaluate(proven: ProofResult["signal"]): Promise<void> {
     if (!proven) return;

@@ -152,6 +152,31 @@ describe("SidefootPipeline", () => {
     expect(h.prove).toHaveBeenCalledOnce();
   });
 
+  it("retries a 404 proof as 'pending' (not an error) and honours backoff", async () => {
+    const err = Object.assign(new Error("Request failed with status code 404"), { response: { status: 404 } });
+    const prove = vi.fn().mockRejectedValue(err);
+    const h = harness({ prove: prove as unknown as PipelineDeps["prove"] });
+
+    await h.pipeline.onScoreEvent(goal());
+    expect(prove).toHaveBeenCalledOnce();
+    expect(h.events.find((e) => e.kind === "pending")).toMatchObject({ kind: "pending", reason: "not-published" });
+    expect(h.events.some((e) => e.kind === "error")).toBe(false);
+
+    // The same goal arriving again (new seq) must NOT re-attempt during backoff.
+    await h.pipeline.onScoreEvent(goal({ seq: 99 }));
+    expect(prove).toHaveBeenCalledOnce();
+  });
+
+  it("emits a hard error once proof retries are exhausted", async () => {
+    const err = Object.assign(new Error("Request failed with status code 404"), { response: { status: 404 } });
+    const prove = vi.fn().mockRejectedValue(err);
+    const h = harness({ prove: prove as unknown as PipelineDeps["prove"], proofRetry: { maxAttempts: 1 } });
+
+    await h.pipeline.onScoreEvent(goal());
+    expect(h.events.find((e) => e.kind === "error")).toMatchObject({ stage: "prove" });
+    expect(h.events.some((e) => e.kind === "pending")).toBe(false);
+  });
+
   it("drops the alert if the explanation fails the boundary/parse", async () => {
     const h = harness({ explain: vi.fn().mockRejectedValue(new Error("boundary breach")) as any });
     h.pipeline.onOddsTick(tick(-2_000, 0.5));

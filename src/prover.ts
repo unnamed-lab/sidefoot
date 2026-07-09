@@ -64,6 +64,32 @@ export function goalIncreasedPredicate(event: ScoreEvent): Predicate {
   };
 }
 
+/**
+ * Why a proof attempt failed, and whether it's worth retrying.
+ *
+ *  - `not-published` — TxLINE's stat-validation endpoint 404s because the goal's
+ *    Merkle proof hasn't been published in a batch yet. This is the normal state
+ *    for a *just-scored* live goal: retry until the batch lands.
+ *  - `network` — a transient timeout / DNS / socket drop (endemic on flaky
+ *    Windows networking). Retry with a short backoff.
+ *  - `fatal` — anything else (bad request, on-chain revert): don't retry.
+ */
+export type ProofErrorReason = "not-published" | "network" | "fatal";
+
+export function classifyProofError(err: unknown): { retryable: boolean; reason: ProofErrorReason } {
+  const e = err as { response?: { status?: number }; status?: number; statusCode?: number; message?: string };
+  const status = e?.response?.status ?? e?.status ?? e?.statusCode;
+  const msg = String(e?.message ?? err ?? "");
+  if (status === 404 || /\b404\b/.test(msg)) return { retryable: true, reason: "not-published" };
+  if (
+    (typeof status === "number" && status >= 500) ||
+    /timeout|ETIMEDOUT|ENOTFOUND|ECONNRESET|ECONNREFUSED|EAI_AGAIN|EPIPE|fetch failed|network|socket|terminated|aborted/i.test(msg)
+  ) {
+    return { retryable: true, reason: "network" };
+  }
+  return { retryable: false, reason: "fatal" };
+}
+
 // ── ports (injectable IO boundary) ────────────────────────────────────────────
 
 export interface ProverPorts {
