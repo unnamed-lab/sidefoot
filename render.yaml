@@ -1,0 +1,50 @@
+# Render Blueprint — Sidefoot live pipeline.
+#
+# The pipeline is a long-running Node process: it holds the TxLINE odds + scores
+# SSE streams open, proves goals on-chain (validate_stat), detects lagging
+# markets, explains them, and alerts via Herald. It has NO HTTP port, so it runs
+# as a Background WORKER, not a Web Service.
+#
+# Why Render and not Vercel: Vercel functions are serverless and short-lived —
+# they can't hold a stream open or carry the wallet secret for on-chain proving.
+# A worker also runs on stable Linux networking, which fixes the intermittent
+# "fetch failed" SSE reconnects seen on Windows.
+#
+# Deploy: Render → New → Blueprint → point at this repo. Then fill the four
+# `sync:false` secrets in the dashboard (they are never committed to git).
+
+services:
+  - type: worker
+    name: sidefoot-pipeline
+    runtime: node
+    plan: starter          # background workers are not on Render's free tier (~$7/mo)
+    region: oregon
+    branch: main
+    autoDeploy: false      # you decide when it (re)deploys — e.g. before kickoff
+
+    # tsx is a devDependency (the worker runs TypeScript directly), so the build
+    # must install dev deps — a plain `pnpm install` does that by default.
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile
+    startCommand: pnpm start
+
+    envVars:
+      # ── Non-secret config ────────────────────────────────────────────────
+      - key: SIDEFOOT_NETWORK
+        value: devnet
+      - key: ANTHROPIC_BASE_URL
+        value: https://api.deepseek.com/anthropic
+      - key: ANTHROPIC_MODEL
+        value: deepseek-v4-pro
+      # Optional: comma-separated fixture ids to track. Unset = ALL live fixtures.
+      # - key: SIDEFOOT_FIXTURES
+      #   value: "18209181"
+
+      # ── Secrets — set these in the Render dashboard (sync:false) ──────────
+      - key: WALLET_SECRET_KEY        # Solana wallet used for on-chain proving
+        sync: false
+      - key: ANTHROPIC_API_KEY        # DeepSeek key (Anthropic-compatible endpoint)
+        sync: false
+      - key: HERALD_API_KEY           # Herald gateway key for Telegram alerts
+        sync: false
+      - key: HERALD_RECIPIENT_WALLET  # wallet that receives the alert
+        sync: false
