@@ -92,12 +92,27 @@ export function DivergenceTimeline({ fixture, explorerCluster }: { fixture: Fixt
   let xDomain: [number | string, number | string] = ["dataMin", "dataMax"];
   let xTicks: number[] | undefined;
   let xFmt = (v: number) => clockTime(new Date(v).toISOString());
-  if (matchClock) {
-    const maxM = Math.max(90, ...data.map((d) => d.x));
-    const matchEnd = Math.min(130, Math.ceil(Math.max(90, maxM) / 15) * 15);
-    const minM = Math.min(0, ...data.map((d) => d.x));
-    xDomain = [Math.floor(minM), matchEnd];
+  // Coverage: TxLINE's odds/updates feed returns only a recent window, so a
+  // finished match often has just a late tail of odds. If we captured from ~KO,
+  // show the whole 0–90'+ timeline; if only a late window exists, FIT the axis to
+  // it so the available data fills the chart instead of clustering in a corner.
+  const xsMin = matchClock ? Math.min(...data.map((d) => d.x)) : 0;
+  const xsMax = matchClock ? Math.max(...data.map((d) => d.x)) : 0;
+  const capturedFromKO = matchClock && xsMin <= 10;
+  if (matchClock && capturedFromKO) {
+    const matchEnd = Math.min(130, Math.ceil(Math.max(90, xsMax) / 15) * 15);
+    xDomain = [0, matchEnd];
     xTicks = [0, 15, 30, 45, 60, 75, 90, 105, 120].filter((t) => t <= matchEnd);
+    xFmt = (v: number) => `${Math.round(v)}'`;
+  } else if (matchClock) {
+    const pad = Math.max(1, (xsMax - xsMin) * 0.05);
+    const domMin = Math.max(0, xsMin - pad);
+    const domMax = Math.min(135, xsMax + pad);
+    const step = domMax - domMin <= 20 ? 5 : 15;
+    const ticks: number[] = [];
+    for (let m = 0; m <= 135; m += step) ticks.push(m);
+    xDomain = [domMin, domMax];
+    xTicks = ticks.filter((t) => t >= domMin && t <= domMax);
     xFmt = (v: number) => `${Math.round(v)}'`;
   }
   const tipLabel = (v: number) => (matchClock ? `${Math.round(v)}'` : clockTime(new Date(v).toISOString()));
@@ -107,6 +122,9 @@ export function DivergenceTimeline({ fixture, explorerCluster }: { fixture: Fixt
       <p className="mb-1 font-mono text-[11px] text-muted">
         Implied win probability · <span className="text-market">{fixture.marketLabel}</span>
         {matchClock && <span className="text-muted-2"> · match clock</span>}
+        {matchClock && !capturedFromKO && (
+          <span className="text-muted-2"> · odds captured from {Math.round(xsMin)}′</span>
+        )}
       </p>
       <div className="h-[320px] w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -138,7 +156,9 @@ export function DivergenceTimeline({ fixture, explorerCluster }: { fixture: Fixt
                 { x: 0, label: "KO" },
                 { x: 45, label: "HT" },
                 { x: 90, label: "FT" },
-              ].map((m) => (
+              ]
+                .filter((m) => m.x >= (xDomain[0] as number) && m.x <= (xDomain[1] as number))
+                .map((m) => (
                 <ReferenceLine
                   key={m.label}
                   x={m.x}
