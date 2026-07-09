@@ -1,0 +1,22 @@
+# Run the Sidefoot pipeline locally in a container.
+#
+#   docker compose up --build          # foreground, plain log lines
+#   docker compose up -d --build       # background; docker compose logs -f
+#
+# Reads secrets from .env (WALLET_SECRET_KEY, ANTHROPIC_API_KEY, HERALD_API_KEY,
+# HERALD_RECIPIENT_WALLET, …). The signal log persists in ./data via the volume.
+
+services:
+  pipeline:
+    build: .
+    image: sidefoot-pipeline
+    container_name: sidefoot-pipeline
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    # The dashboard TUI auto-detects there's no terminal here and prints plain
+    # [proof]/[verdict]/[alert] lines — ideal for `docker compose logs`. To watch
+    # the full live dashboard instead, run attached with a TTY:
+    #   docker compose run --rm pipeline
+    # (compose `run` allocates a TTY, so the Matchday Terminal renders.)

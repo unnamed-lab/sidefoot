@@ -1,0 +1,24 @@
+# Keep the build context small and never ship secrets or local state.
+**/node_modules
+**/dist
+**/.next
+.git
+.gitignore
+
+# Secrets & local session/state (env is injected at run time instead).
+.env
+.env.*
+!.env.example
+.session.json
+data/*.jsonl
+
+# The dashboard is a separate (Vercel) deploy; the worker image doesn't need its
+# source — but the lockfile references its package.json, so keep just that.
+dashboard
+!dashboard/package.json
+
+# Docs / CI / editor noise.
+*.log
+*.md
+.claude
+.vscode
